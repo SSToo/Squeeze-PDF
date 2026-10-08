@@ -81,6 +81,7 @@ pub enum OutputMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Limits {
+    /// Optional caller-imposed file cap. `u64::MAX` (the default) is unlimited.
     pub max_file_bytes: u64,
     pub max_stream_bytes: usize,
     pub max_image_pixels: u64,
@@ -90,7 +91,7 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_file_bytes: 256 * 1024 * 1024,
+            max_file_bytes: u64::MAX,
             max_stream_bytes: 64 * 1024 * 1024,
             max_image_pixels: 24_000_000,
             max_objects: 250_000,

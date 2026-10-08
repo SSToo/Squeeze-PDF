@@ -509,14 +509,14 @@ export const catalog = {
     "PDFs hier ablegen",
     "Arraste PDFs para cá",
   ],
-  "支持批量添加，每个文件最多 256 MB。": [
-    "Add multiple files, up to 256 MB each.",
-    "Ajout multiple, jusqu’à 256 Mo par fichier.",
-    "Añade varios archivos, hasta 256 MB por archivo.",
-    "여러 파일을 추가할 수 있으며 파일당 최대 256 MB입니다.",
-    "複数ファイルを追加可能。1 ファイル最大 256 MB。",
-    "Mehrere Dateien hinzufügen, jeweils bis zu 256 MB.",
-    "Adicione vários arquivos, até 256 MB cada.",
+  "支持批量添加 PDF 文件。": [
+    "Add multiple PDF files at once.",
+    "Ajoutez plusieurs fichiers PDF à la fois.",
+    "Añade varios archivos PDF a la vez.",
+    "여러 PDF 파일을 한 번에 추가할 수 있습니다.",
+    "複数の PDF ファイルをまとめて追加できます。",
+    "Mehrere PDF-Dateien auf einmal hinzufügen.",
+    "Adicione vários arquivos PDF de uma vez.",
   ],
   "选择 PDF 文件": [
     "Choose PDF files",
@@ -1522,15 +1522,6 @@ export const catalog = {
     "ページの描画がまだ完了していません。",
     "Das Rendern der Seiten ist noch nicht abgeschlossen.",
     "A renderização das páginas ainda não terminou.",
-  ],
-  文件超过预览限制: [
-    "The file exceeds the preview size limit.",
-    "Le fichier dépasse la limite de taille de l’aperçu.",
-    "El archivo supera el límite de tamaño de la vista previa.",
-    "파일이 미리보기 크기 제한을 초과했습니다.",
-    "ファイルがプレビューのサイズ制限を超えています。",
-    "Die Datei überschreitet das Größenlimit der Vorschau.",
-    "O arquivo excede o limite de tamanho da prévia.",
   ],
   "文件操作失败：{detail}": [
     "File operation failed: {detail}",

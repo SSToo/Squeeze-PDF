@@ -106,7 +106,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 ## 支持范围与限制
 
-- 每文件最多 256 MiB，单流解压最多 64 MiB，单张图片最多 2400 万像素；队列串行执行。
+- 不设固定的 PDF 文件大小上限，导入、压缩与预览支持超过 256 MiB 的文件；实际可处理大小取决于可用内存。单流解压最多 64 MiB，单张图片最多 2400 万像素；队列串行执行。
 - 原始内容模式的常规图片通路支持 8 位 RGB / Gray、默认范围的 1 / 3 通道 ICCBased、Flate 预测器与 JPEG，以及受限 1 位 Gray / G4、Indexed 输入；常规灰度软遮罩保持无损。原始分量通路另覆盖受限 raw / 单层 Flate 的 1 / 2 / 4 / 8 / 16 位 DeviceGray / RGB / CMYK、CalGray / CalRGB、Lab、ICCBased、Indexed、Separation / DeviceN，不转换 RGB，保持原宽高、颜色空间、位深、ICC Range、非默认 Decode 和遮罩。每张新增分量工作最多 4 MiB、每份新增样本预算 16 MiB，另有软时间预算。CMYK JPEG、JPEG2000、JBIG2、G3 / 特殊 CCITT、未知或多层过滤器仍保留原图片编码；单名 Flate 的精确重压缩另受 Zopfli 预算与交互保护约束。只归一化确实默认的设备颜色 Decode；含 DefaultGray / RGB / CMYK 的文档继续保留显式映射。
 - 根据实际绘制尺寸处理继承资源、共享图片、Form Matrix 和 UserUnit；按每张图片记录未知调用；分析不完整或超过预算时只禁用相关图片的降采样，继续安全重编码。保真始终保持原图片尺寸。
 - 原始内容模式保留表单、批注及附件，并保护外观 / 字段默认资源及其共享图片；不相关的普通页面图片按所选档位优化。图案 / Type3 等未知图片调用保持原尺寸。附件不再关闭普通页面优化；表单与外观批注的两项有损矢量优化仍采用整份保守保护。空的批注数组不算交互内容。加密、数字签名、PDF/A、XFA、组合包均跳过。

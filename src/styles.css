@@ -768,7 +768,7 @@ canvas {
   color: var(--green);
 }
 .message:not(:empty) {
-  margin-top: 14px;
+  margin: 14px 23px;
 }
 .drop-overlay {
   position: fixed;

@@ -1,7 +1,7 @@
 {
   "name": "squeeze-pdf",
   "private": true,
-  "version": "0.1.16",
+  "version": "0.1.18",
   "type": "module",
   "scripts": {
     "dev": "node scripts/prepare-worker.mjs && node scripts/prepare-notices.mjs && vite --host 127.0.0.1 --port 1420 --strictPort",

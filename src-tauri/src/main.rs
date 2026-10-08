@@ -3,7 +3,6 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
     collections::HashSet,
-    io::Read,
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
@@ -480,14 +479,7 @@ async fn finish_raster(
 async fn read_pdf(path: String, state: State<'_, Arc<EngineState>>) -> Result<Response, String> {
     let path = authorize(&state, &path)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-        let mut bytes = Vec::new();
-        file.take(256 * 1024 * 1024 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
-        if bytes.len() > 256 * 1024 * 1024 {
-            return Err("文件超过预览限制".into());
-        }
+        let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
         Ok(Response::new(bytes))
     })
     .await

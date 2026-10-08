@@ -240,17 +240,16 @@ export default function App() {
         multiple: false,
         defaultPath: directory || undefined,
       });
-      if (typeof path === "string") setDirectory(path);
+      if (typeof path === "string") {
+        setDirectory(path);
+        return path;
+      }
     } catch (e) {
       setMessage(String(e));
     }
   }
   async function run(only?: string) {
     if (busyRef.current) return;
-    if (!directory) {
-      setMessage("请先选择输出文件夹。");
-      return;
-    }
     const queue = filesRef.current.filter(
       (j) => !j.error && (!only || j.path === only),
     );
@@ -258,14 +257,16 @@ export default function App() {
     busyRef.current = true;
     setBusy(true);
     cancel.current = false;
-    setDone(0);
     setMessage("");
-    queue.forEach((j) =>
-      update(j.path, { status: "queued", report: undefined, phase: undefined }),
-    );
     let finished = 0;
     let failed = 0;
     try {
+      const outputDirectory = directory || (await pickDirectory());
+      if (!outputDirectory || cancel.current) return;
+      setDone(0);
+      queue.forEach((j) =>
+        update(j.path, { status: "queued", report: undefined, phase: undefined }),
+      );
       for (const job of queue) {
         if (cancel.current) {
           update(job.path, { status: "cancelled" });
@@ -275,12 +276,12 @@ export default function App() {
         try {
           const report =
             outputMode === "raster"
-              ? await compressRaster(job.path, directory, preset, (phase) =>
+              ? await compressRaster(job.path, outputDirectory, preset, (phase) =>
                   update(job.path, { phase }),
                 )
               : await invoke<Report>("compress_file", {
                   path: job.path,
-                  directory,
+                  directory: outputDirectory,
                   preset,
                   outputMode,
                 });
@@ -565,7 +566,7 @@ export default function App() {
                   </div>
                 </div>
                 <h3>{dragging ? t("松开即可添加") : t("把 PDF 拖到这里")}</h3>
-                <p>{t("支持批量添加，每个文件最多 256 MB。")}</p>
+                <p>{t("支持批量添加 PDF 文件。")}</p>
                 <button
                   className="primary"
                   disabled={importing}
@@ -776,6 +777,9 @@ export default function App() {
                 {t("部分文件处理失败，点击对应文件名查看原因或重试。")}
               </p>
             )}
+            <div className="message" role="status" aria-live="polite">
+              {raw(message)}
+            </div>
             <footer className="batch-footer">
               <div>
                 <span className="footer-stat">
@@ -819,9 +823,6 @@ export default function App() {
               )}
             </footer>
           </section>
-        </div>
-        <div className="message" role="status" aria-live="polite">
-          {raw(message)}
         </div>
       </main>
       {dragging && (
