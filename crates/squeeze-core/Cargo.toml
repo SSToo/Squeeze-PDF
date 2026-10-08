@@ -1,0 +1,25 @@
+[package]
+name = "squeeze-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+[dependencies]
+lopdf.workspace = true
+image.workspace = true
+flate2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
+sha2.workspace = true
+hayro.workspace = true
+mozjpeg.workspace = true
+mozjpeg-sys.workspace = true
+fax.workspace = true
+hayro-ccitt.workspace = true
+zopfli.workspace = true
+
+[dev-dependencies]
+brotli = "=8.0.4"
+subsetter = { version = "=0.2.6", default-features = false }

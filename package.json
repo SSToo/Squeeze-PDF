@@ -1,0 +1,35 @@
+{
+  "name": "squeeze-pdf",
+  "private": true,
+  "version": "0.1.16",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/prepare-worker.mjs && node scripts/prepare-notices.mjs && vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "tsc --noEmit && node scripts/prepare-assets.mjs && node scripts/prepare-worker.mjs --release && node scripts/prepare-notices.mjs && vite build",
+    "preview": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "tauri": "tauri",
+    "check": "tsc --noEmit",
+    "notices": "node scripts/prepare-notices.mjs",
+    "package:mac": "tauri build --bundles app && node scripts/package-macos.mjs",
+    "postinstall": "node scripts/prepare-assets.mjs",
+    "test:render": "node --experimental-strip-types scripts/test-render-validation.mjs",
+    "test:i18n": "node --experimental-strip-types scripts/test-i18n.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9",
+    "vite": "^7"
+  }
+}

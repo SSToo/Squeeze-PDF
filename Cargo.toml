@@ -1,0 +1,33 @@
+[workspace]
+members = ["crates/squeeze-core", "crates/squeeze-cli", "src-tauri"]
+default-members = ["crates/squeeze-core", "crates/squeeze-cli"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.16"
+edition = "2024"
+rust-version = "1.92"
+license = "LicenseRef-Proprietary"
+
+[workspace.dependencies]
+lopdf = { version = "=0.45.0", default-features = false }
+image = { version = "=0.25.10", default-features = false, features = ["jpeg"] }
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tempfile = "3"
+sha2 = "0.10"
+hayro = { version = "=0.7.1" }
+mozjpeg-sys = { version = "=2.2.3", default-features = false, features = ["parallel", "unwinding"] }
+fax = { version = "=0.3.0", default-features = false }
+hayro-ccitt = "=0.3.0"
+zopfli = { version = "=0.8.3", default-features = false, features = ["std", "zlib"] }
+mozjpeg = { version = "=0.10.13", default-features = false, features = ["parallel"] }
+
+[profile.release]
+strip = true
+lto = "thin"
+
+[profile.release.build-override]
+strip = false

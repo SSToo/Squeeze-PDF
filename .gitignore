@@ -1,0 +1,10 @@
+/target/
+/node_modules/
+/dist/
+/.DS_Store
+/tmp/
+*.log
+/src-tauri/binaries/*
+/src-tauri/gen/
+/public/pdf-assets/
+/third-party/
