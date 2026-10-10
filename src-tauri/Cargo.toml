@@ -16,3 +16,4 @@ serde_json.workspace = true
 squeeze-core = { path = "../crates/squeeze-core" }
 tokio = { version = "1", features = ["time"] }
 tempfile.workspace = true
+sha2.workspace = true

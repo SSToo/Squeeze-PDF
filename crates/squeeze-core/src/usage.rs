@@ -200,11 +200,9 @@ pub(crate) fn page_content(doc: &Document, d: &Dictionary, limit: usize) -> lopd
     let mut bytes = Vec::new();
     for o in items {
         let (_, o) = doc.dereference(o)?;
-        let data = o
-            .as_stream()?
-            .get_plain_content_with_limit(limit.saturating_sub(bytes.len() + 1))?;
+        let data =
+            crate::stream_filters::content(doc, o.as_stream()?, limit.saturating_sub(bytes.len()))?;
         bytes.extend(data);
-        bytes.push(b'\n');
         if bytes.len() > limit {
             return Err(lopdf::Error::InvalidStream("页面内容过大".into()));
         }
@@ -270,18 +268,21 @@ impl Analyzer<'_> {
                             // A foreign Form without resources may borrow an
                             // unknown caller's dictionary. No safe local bound.
                             let s = self.doc.get_object(*id)?.as_stream()?;
-                            if s.get_plain_content_with_limit(self.limits.max_stream_bytes)
-                                .ok()
-                                .and_then(|v| Content::decode(&v).ok())
-                                .is_none_or(|c| {
-                                    c.operations.iter().any(|o| {
-                                        matches!(
-                                            o.operator.as_str(),
-                                            "Do" | "Tf" | "gs" | "CS" | "cs" | "SCN" | "scn" | "sh"
-                                        )
-                                    })
+                            if crate::stream_filters::content(
+                                self.doc,
+                                s,
+                                self.limits.max_stream_bytes,
+                            )
+                            .ok()
+                            .and_then(|v| Content::decode(&v).ok())
+                            .is_none_or(|c| {
+                                c.operations.iter().any(|o| {
+                                    matches!(
+                                        o.operator.as_str(),
+                                        "Do" | "Tf" | "gs" | "CS" | "cs" | "SCN" | "scn" | "sh"
+                                    )
                                 })
-                            {
+                            }) {
                                 self.protect_all();
                             }
                         }
@@ -405,7 +406,11 @@ impl Analyzer<'_> {
                             .and_then(|(_, o)| o.as_dict().ok());
                         match (
                             form_matrix,
-                            stream.get_plain_content_with_limit(self.limits.max_stream_bytes),
+                            crate::stream_filters::content(
+                                self.doc,
+                                stream,
+                                self.limits.max_stream_bytes,
+                            ),
                         ) {
                             (Some(m), Ok(data)) => self.walk(
                                 &data,

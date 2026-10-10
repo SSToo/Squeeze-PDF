@@ -73,9 +73,11 @@ pub(crate) fn cleanup(doc: &mut Document, limits: &Limits, cancel: &AtomicBool) 
         let bytes = if page {
             usage::page_content(doc, d, limits.max_stream_bytes)
         } else {
-            doc.get_object(owner)?
-                .as_stream()?
-                .get_plain_content_with_limit(limits.max_stream_bytes)
+            crate::stream_filters::content(
+                doc,
+                doc.get_object(owner)?.as_stream()?,
+                limits.max_stream_bytes,
+            )
         };
         let Ok(bytes) = bytes else {
             continue;
@@ -368,7 +370,7 @@ fn names(
         if path.len() >= 32 || !path.insert(id) {
             return Ok(false);
         }
-        let Ok(bytes) = s.get_plain_content_with_limit(limits.max_stream_bytes) else {
+        let Ok(bytes) = crate::stream_filters::content(doc, s, limits.max_stream_bytes) else {
             return Ok(false);
         };
         if !names(doc, &bytes, r, used, path, budget, limits, cancel)? {
@@ -393,6 +395,10 @@ pub(crate) fn deduplicate_images(
     options: &Options,
     cancel: &AtomicBool,
 ) -> Result<usize> {
+    check_cancel(cancel)?;
+    if crate::identity::bound(doc, &options.limits) {
+        return Ok(0);
+    }
     let protected = usage::analyze(doc, &options.limits, cancel)?.protected;
     let mut buckets: HashMap<[u8; 32], Vec<ObjectId>> = HashMap::new();
     let mut map = HashMap::new();

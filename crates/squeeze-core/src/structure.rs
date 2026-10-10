@@ -66,7 +66,7 @@ pub(crate) fn optimize_content(
     for id in ids {
         check_cancel(cancel)?;
         let s = doc.get_object(id)?.as_stream()?;
-        let Ok(raw) = s.get_plain_content_with_limit(limits.max_stream_bytes) else {
+        let Ok(raw) = crate::stream_filters::content(doc, s, limits.max_stream_bytes) else {
             continue;
         };
         let Some(normalized) = normalize_numbers(&raw) else {
@@ -91,7 +91,7 @@ pub(crate) fn optimize_content(
 // Rewrite exact decimal spellings only. Strings, names and comments are copied
 // byte-for-byte. Inline image streams are skipped because their binary data may
 // contain bytes that look like ordinary PDF tokens.
-fn normalize_numbers(data: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn normalize_numbers(data: &[u8]) -> Option<Vec<u8>> {
     fn space(c: u8) -> bool {
         matches!(c, 0 | 9 | 10 | 12 | 13 | 32)
     }
@@ -206,7 +206,15 @@ fn normalize_numbers(data: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
-pub(crate) fn deduplicate(doc: &mut Document, cancel: &AtomicBool) -> Result<usize> {
+pub(crate) fn deduplicate(
+    doc: &mut Document,
+    limits: &Limits,
+    cancel: &AtomicBool,
+) -> Result<usize> {
+    check_cancel(cancel)?;
+    if crate::identity::bound(doc, limits) {
+        return Ok(0);
+    }
     fn same_dict(a: &Dictionary, b: &Dictionary) -> bool {
         a.iter().filter(|(k, _)| k.as_slice() != b"Length").count()
             == b.iter().filter(|(k, _)| k.as_slice() != b"Length").count()

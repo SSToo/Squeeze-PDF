@@ -18,6 +18,11 @@ fn safe(d: &Dictionary) -> bool {
         b"OPI",
         b"ByteRange",
         b"ID",
+        b"Stm",
+        b"AP",
+        b"FT",
+        b"MarkInfo",
+        b"StructTreeRoot",
     ]
     .iter()
     .any(|key| d.has(key))
@@ -31,6 +36,8 @@ fn safe(d: &Dictionary) -> bool {
                     | b"OCG"
                     | b"OCMD"
                     | b"StructElem"
+                    | b"MCR"
+                    | b"OBJR"
                     | b"Filespec"
                     | b"EmbeddedFile"
                     | b"Metadata"
@@ -45,6 +52,7 @@ struct Fingerprints<'a> {
     path: HashSet<ObjectId>,
     work: usize,
     bytes: usize,
+    identity_bound: bool,
 }
 impl Fingerprints<'_> {
     fn hash(&mut self, o: &Object, depth: usize) -> Option<[u8; 32]> {
@@ -101,6 +109,12 @@ impl Fingerprints<'_> {
                 self.dict(d, &mut h, depth, false)?;
             }
             Object::Stream(s) => {
+                // Pure resource dictionaries may still share (e.g. standard
+                // fonts). Any graph reaching a stream retains its identity in
+                // documents with tags, appearances or an uncertain scan.
+                if self.identity_bound {
+                    return None;
+                }
                 h.update(b"stream");
                 self.dict(&s.dict, &mut h, depth, true)?;
                 if s.content.len() > self.bytes {
@@ -132,7 +146,13 @@ impl Fingerprints<'_> {
         Some(())
     }
 }
-fn equivalent(doc: &Document, a: &Object, b: &Object, work: &mut usize, depth: usize) -> bool {
+pub(crate) fn equivalent(
+    doc: &Document,
+    a: &Object,
+    b: &Object,
+    work: &mut usize,
+    depth: usize,
+) -> bool {
     if *work == 0 || depth > 64 {
         return false;
     }
@@ -176,6 +196,8 @@ pub(crate) fn deduplicate(
     limits: &Limits,
     cancel: &AtomicBool,
 ) -> Result<usize> {
+    check_cancel(cancel)?;
+    let identity_bound = crate::identity::bound(doc, limits);
     // Roots come only from resource dictionaries. Follow their child objects,
     // but not page trees, annotation identity or document-level relationships.
     let mut pending = Vec::new();
@@ -210,6 +232,7 @@ pub(crate) fn deduplicate(
         path: HashSet::new(),
         work: limits.max_operations.saturating_mul(4),
         bytes: limits.max_stream_bytes.saturating_mul(8),
+        identity_bound,
     };
     let mut buckets: HashMap<[u8; 32], Vec<ObjectId>> = HashMap::new();
     let mut map = HashMap::new();

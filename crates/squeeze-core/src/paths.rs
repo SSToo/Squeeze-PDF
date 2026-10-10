@@ -19,7 +19,7 @@ pub(crate) fn optimize(
     for (id, unit) in ids {
         check_cancel(cancel)?;
         let stream = doc.get_object(id)?.as_stream()?;
-        let Ok(raw) = stream.get_plain_content_with_limit(limits.max_stream_bytes) else {
+        let Ok(raw) = crate::stream_filters::content(doc, stream, limits.max_stream_bytes) else {
             continue;
         };
         let Some(data) = compact(&raw, unit, limits.max_operations) else {

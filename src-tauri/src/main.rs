@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod raster_staging;
 use serde::Serialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -34,8 +36,9 @@ struct RasterSession {
     preset: squeeze_core::Preset,
     plan: squeeze_core::RasterPlan,
     directory: tempfile::TempDir,
-    received: usize,
+    staging: raster_staging::Staging,
     started: std::time::Instant,
+    last_activity: std::time::Instant,
 }
 #[derive(Serialize)]
 struct RasterStart {
@@ -154,6 +157,13 @@ async fn compress_file(
     }
     result
 }
+fn worker_seconds(bytes: u64, pages: u64) -> u64 {
+    120u64
+        .saturating_add(bytes / (16 * 1024 * 1024) * 20)
+        .saturating_add(pages.saturating_mul(5))
+        .min(1800)
+}
+
 async fn run_worker(
     app: &tauri::AppHandle,
     state: &EngineState,
@@ -204,18 +214,33 @@ async fn run_worker(
     if output_mode == squeeze_core::OutputMode::Preserve {
         command = command.args(["--compact-paths", "--reuse-paths"]);
     }
+    let input_bytes = std::fs::metadata(input).map_err(|e| e.to_string())?.len();
+    let pages = if let Some(manifest) = raster_manifest {
+        serde_json::from_slice::<squeeze_core::RasterManifest>(
+            &std::fs::read(manifest).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?
+        .pages as u64
+    } else {
+        0
+    };
     let (mut events, child) = command.spawn().map_err(|e| e.to_string())?;
     *state.child.lock().unwrap() = Some(child);
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(120);
+    let deadline = tokio::time::Instant::now()
+        + std::time::Duration::from_secs(worker_seconds(input_bytes, pages));
+    let mut last_progress = tokio::time::Instant::now();
     let mut stdout = Vec::new();
     let mut error = String::new();
     let mut terminated = false;
     let result: Result<Value, String> = async {
         loop {
-            let event = tokio::time::timeout_at(deadline, events.recv())
-                .await
-                .map_err(|_| "处理超时，已终止任务")?
-                .ok_or("引擎意外停止")?;
+            let event = tokio::time::timeout_at(
+                deadline.min(last_progress + std::time::Duration::from_secs(120)),
+                events.recv(),
+            )
+            .await
+            .map_err(|_| "处理超时，已终止任务")?
+            .ok_or("引擎意外停止")?;
             match event {
                 CommandEvent::Stdout(bytes) => {
                     if stdout.len() + bytes.len() > 16 * 1024 * 1024 {
@@ -225,6 +250,7 @@ async fn run_worker(
                 }
                 CommandEvent::Stderr(bytes) => {
                     if let Ok(progress) = serde_json::from_slice::<Value>(&bytes) {
+                        last_progress = tokio::time::Instant::now();
                         let _ = app.emit(
                             "squeeze-progress",
                             json!({"path":input,"progress":progress}),
@@ -335,6 +361,12 @@ async fn begin_raster(
             id: id.clone(),
             plan: plan.clone(),
         };
+        let staging = raster_staging::Staging::new(
+            plan.pages
+                .iter()
+                .map(|p| p.dimensions[0] as usize * p.dimensions[1] as usize * 3)
+                .collect(),
+        );
         *owner.raster.lock().unwrap() = Some(RasterSession {
             id,
             input,
@@ -342,8 +374,9 @@ async fn begin_raster(
             preset,
             plan,
             directory,
-            received: 0,
+            staging,
             started: std::time::Instant::now(),
+            last_activity: std::time::Instant::now(),
         });
         Ok(start)
     })
@@ -383,29 +416,38 @@ fn write_raster_page(
         .as_mut()
         .filter(|s| s.id == id)
         .ok_or("页面会话已结束")?;
-    if session.started.elapsed().as_secs() > 120 {
+    if session.started.elapsed().as_secs() > (session.plan.pages.len() as u64 * 45).clamp(120, 1800)
+        || session.last_activity.elapsed().as_secs() > 120
+    {
         return Err("页面渲染超时".into());
     }
-    if index != session.received {
-        return Err("页面像素顺序无效".into());
-    }
-    let page = session
-        .plan
-        .pages
-        .get(index)
-        .ok_or("页面编号超过原件范围")?;
-    let expected = page.dimensions[0] as usize * page.dimensions[1] as usize * 3;
-    if bytes.len() != expected {
-        return Err("页面像素长度与尺寸不符".into());
-    }
-    use std::io::Write;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(session.directory.path().join(format!("{index}.rgb")))
-        .map_err(|e| e.to_string())?;
-    file.write_all(bytes).map_err(|e| e.to_string())?;
-    session.received += 1;
+    let offset_header = request.headers().get("x-squeeze-offset");
+    let offset = match offset_header {
+        Some(v) => v
+            .to_str()
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .ok_or("页面像素长度无效")?,
+        None => 0,
+    };
+    let alternate = match request
+        .headers()
+        .get("x-squeeze-variant")
+        .and_then(|v| v.to_str().ok())
+    {
+        None | Some("direct") => false,
+        Some("supersampled") => true,
+        _ => return Err("页面顺序或像素长度无效".into()),
+    };
+    session.staging.write(
+        session.directory.path(),
+        index,
+        alternate,
+        offset,
+        bytes,
+        offset_header.is_some(),
+    )?;
+    session.last_activity = std::time::Instant::now();
     Ok(())
 }
 
@@ -432,7 +474,7 @@ async fn finish_raster(
             .as_ref()
             .filter(|s| s.id == id)
             .ok_or("页面会话已结束")?;
-        if s.received != s.plan.pages.len() {
+        if !s.staging.primary_complete() || !s.staging.alternate_complete() {
             return Err("页面渲染尚未完成".into());
         }
         locked.take().unwrap()
@@ -447,17 +489,51 @@ async fn finish_raster(
             pages: session.plan.pages.len(),
         })
         .map_err(|e| e.to_string())?;
-        std::fs::write(&manifest, bytes).map_err(|e| e.to_string())?;
-        let report = run_worker(
+        std::fs::write(&manifest, &bytes).map_err(|e| e.to_string())?;
+        let primary=session.directory.path().join("primary.pdf");
+        let mut report = run_worker(
             &app,
             &state,
             &session.input,
-            &session.output,
+            &primary,
             session.preset,
             squeeze_core::OutputMode::Raster,
             Some(&manifest),
         )
         .await?;
+        let baseline_bytes=report.get("result_bytes").and_then(Value::as_u64).ok_or("引擎报告无法读取：missing result field")?;
+        let mut rendering=json!({"status":"direct","baseline_bytes":baseline_bytes,"selected":false,"supersampled_pages":session.staging.alternate_pages(),"chunks":session.staging.chunks,"max_chunk_bytes":session.staging.max_chunk_bytes});
+        if session.staging.any_alternate() {
+            if state.cancelled.load(Ordering::SeqCst){return Err("任务已取消".into());}
+            let alt=session.directory.path().join("supersampled");
+            for index in 0..session.plan.pages.len(){if !session.staging.has_alternate(index){std::fs::hard_link(session.directory.path().join(format!("{index}.rgb")),alt.join(format!("{index}.rgb"))).or_else(|_|std::fs::copy(session.directory.path().join(format!("{index}.rgb")),alt.join(format!("{index}.rgb"))).map(|_|())).map_err(|e|e.to_string())?;}}
+            let alt_manifest=alt.join("manifest.json");std::fs::write(&alt_manifest,&bytes).map_err(|e|e.to_string())?;
+            let result=run_worker(&app,&state,&session.input,&session.directory.path().join("supersampled.pdf"),session.preset,squeeze_core::OutputMode::Raster,Some(&alt_manifest)).await;
+            match result {Ok(candidate)=>{let size=candidate.get("result_bytes").and_then(Value::as_u64).ok_or("引擎报告无法读取：missing result field")?;rendering["candidate_bytes"]=json!(size);
+                if size<baseline_bytes {
+                    let direct=PathBuf::from(report.get("output").and_then(Value::as_str).ok_or("引擎报告无法读取：missing result field")?);
+                    let alternate=PathBuf::from(candidate.get("output").and_then(Value::as_str).ok_or("引擎报告无法读取：missing result field")?);
+                    let direct_dir=session.directory.path().to_owned();let alt_dir=alt.clone();
+                    let pages=(0..session.plan.pages.len()).map(|i|session.staging.has_alternate(i)).collect::<Vec<_>>();let quality_state=state.clone();
+                    let quality=tauri::async_runtime::spawn_blocking(move||squeeze_core::compare_raster_quality(direct,alternate,direct_dir,alt_dir,&pages,&squeeze_core::Limits::default(),&quality_state.cancelled)).await.map_err(|e|e.to_string())?;
+                    match quality {
+                        Ok(quality)=>{if quality.accepted {report=candidate;rendering["status"]=json!("supersampled");rendering["selected"]=json!(true);}else{rendering["status"]=json!("kept_direct_quality");}rendering["quality"]=serde_json::to_value(quality).map_err(|e|e.to_string())?;},
+                        Err(e)=>{if state.cancelled.load(Ordering::SeqCst){return Err("任务已取消".into());}rendering["status"]=json!("kept_direct_quality");rendering["rejection"]=json!(e.to_string());}
+                    }
+                }else{rendering["status"]=json!("kept_direct");}
+            },Err(e)=>{if state.cancelled.load(Ordering::SeqCst)||e.contains("引擎未及时退出"){return Err(e);}rendering["status"]=json!("candidate_failed");rendering["rejection"]=json!(e);}}
+        }
+        if state.cancelled.load(Ordering::SeqCst){return Err("任务已取消".into());}
+        // Recheck the original immediately before the sole, non-overwriting export.
+        use std::io::{Read,Write};let mut original=std::fs::File::open(&session.input).map_err(|e|e.to_string())?;let mut hash=Sha256::new();let mut chunk=[0;65536];
+        loop {if state.cancelled.load(Ordering::SeqCst){return Err("任务已取消".into());}let n=original.read(&mut chunk).map_err(|e|e.to_string())?;if n==0 {break;}hash.update(&chunk[..n]);}
+        if format!("{:x}",hash.finalize())!=session.plan.source_sha256{return Err("原件已变化，未导出结果".into());}
+        let mut final_file=tempfile::NamedTempFile::new_in(session.output.parent().ok_or("输出目录无效")?).map_err(|e|e.to_string())?;
+        let chosen=report.get("output").and_then(Value::as_str).ok_or("引擎报告无法读取：missing result field")?;
+        std::io::copy(&mut std::fs::File::open(chosen).map_err(|e|e.to_string())?,final_file.as_file_mut()).map_err(|e|e.to_string())?;final_file.flush().map_err(|e|e.to_string())?;final_file.as_file().sync_all().map_err(|e|e.to_string())?;
+        if state.cancelled.load(Ordering::SeqCst){return Err("任务已取消".into());}
+        final_file.persist_noclobber(&session.output).map_err(|e|e.to_string())?;
+        report["output"]=json!(session.output);report["desktop_rendering"]=rendering;
         if let Some(path) = report.get("output").and_then(Value::as_str) {
             state
                 .allowed
@@ -531,4 +607,14 @@ fn main() {
                 state.raster.lock().unwrap().take();
             }
         });
+}
+
+#[cfg(test)]
+mod deadline_tests {
+    #[test]
+    fn long_raster_documents_get_a_bounded_deadline_even_with_small_sources() {
+        assert_eq!(super::worker_seconds(0, 0), 120);
+        assert_eq!(super::worker_seconds(0, 100), 620);
+        assert_eq!(super::worker_seconds(u64::MAX, u64::MAX), 1800);
+    }
 }

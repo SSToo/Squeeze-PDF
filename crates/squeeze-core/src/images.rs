@@ -9,12 +9,16 @@ use image::{
 use lopdf::{Document, Object, Stream};
 use std::{collections::HashSet, io::Cursor, sync::atomic::AtomicBool};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn optimize(
     doc: &mut Document,
     options: &Options,
     usage: &Usage,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
+    enhanced: bool,
+    encoder: &mut crate::jpeg::Encoder,
+    rgb_budget: &mut crate::image_encoding::RgbBudget,
 ) -> Result<Vec<ImageResult>> {
     // Mask samples describe opacity, not colour. Keep them lossless even when
     // the associated colour image is recompressed.
@@ -41,7 +45,6 @@ pub(crate) fn optimize(
         })
         .collect();
     let mut results = Vec::new();
-    let mut encoder = crate::jpeg::Encoder::default();
     let mut native_elapsed = std::time::Duration::ZERO;
     let mut native_remaining = 16 * 1024 * 1024usize;
     let default_spaces = crate::native_samples::has_default_spaces(doc, &options.limits, cancel)?;
@@ -104,10 +107,12 @@ pub(crate) fn optimize(
         }
         let s = normalized.as_ref().unwrap_or(s);
         let is_mask = masks.contains(id);
+        let is_jpeg = crate::stream_filters::filters(doc, s)
+            .is_ok_and(|f| f.len() == 1 && f[0].name == b"DCTDecode");
         let decoded = if is_mask
             && (s.dict.has(b"Matte")
                 || !inspect::named(&s.dict, b"ColorSpace", b"DeviceGray")
-                || matches!(s.dict.get(b"Filter"),Ok(Object::Name(n)) if n==b"DCTDecode"))
+                || is_jpeg)
         {
             Err("透明遮罩保留无损像素".into())
         } else {
@@ -116,7 +121,8 @@ pub(crate) fn optimize(
         // Embedded ICC blocks prohibit pixel recompression, but remain byte-for-
         // byte intact in coefficient recoding after all preceding checks pass.
         if !is_mask
-            && matches!(s.dict.get(b"Filter"),Ok(Object::Name(n)) if n==b"DCTDecode")
+            && is_jpeg
+            && (enhanced || inspect::named(&s.dict, b"Filter", b"DCTDecode"))
             && (decoded.is_ok()
                 || decoded
                     .as_ref()
@@ -127,6 +133,7 @@ pub(crate) fn optimize(
                 before,
                 options.limits.max_image_pixels,
                 options.limits.max_stream_bytes,
+                enhanced && matches!(options.preset, Preset::Lossless | Preset::Fidelity),
             )
         {
             for (name, bytes) in outputs {
@@ -169,6 +176,12 @@ pub(crate) fn optimize(
             native_elapsed += attempt.elapsed();
         }
         let result = decoded.and_then(|mut image| {
+            // JPEG decoding has reader-specific IDCT rounding. Strict lossless
+            // retains the original coefficients rather than freezing one
+            // decoder's RGB samples into a different image codec.
+            if options.preset == Preset::Lossless && is_jpeg {
+                return Ok(());
+            }
             let mut dimensions = before;
             if !is_mask && !matches!(options.preset, Preset::Fidelity | Preset::Lossless)
                 && !usage.unknown.contains(id) && !s.dict.has(b"SMask")
@@ -197,6 +210,7 @@ pub(crate) fn optimize(
             // still improve them without changing any color or opacity sample.
             let packed=!is_mask && matches!(base.get(b"ColorSpace"),Ok(Object::Name(n)) if n==b"DeviceRGB" || n==b"DeviceGray");
             crate::image_encoding::add_exact(&mut candidates,&base,image.as_bytes(),dimensions[0],if gray {1} else {3},packed,false).map_err(|e|e.to_string())?;
+            if enhanced && !is_jpeg { crate::image_encoding::add_rgb_extra(&mut candidates,&base,image.as_bytes(),dimensions[0],if gray {1} else {3},rgb_budget,cancel).map_err(|e|e.to_string())?; }
             Ok(())
         });
         check_cancel(cancel)?;
@@ -590,6 +604,16 @@ fn unfilter(
         },
         _ => return Err("解码参数未支持".into()),
     };
+    if params.is_some_and(|d| {
+        d.iter().any(|(k, _)| {
+            !matches!(
+                k.as_slice(),
+                b"Predictor" | b"Colors" | b"Columns" | b"BitsPerComponent"
+            )
+        })
+    }) {
+        return Err("保留未知图片解码参数".into());
+    }
     let get = |k: &[u8], default: i64| -> std::result::Result<i64, String> {
         match params.and_then(|d| d.get(k).ok()) {
             Some(o) => o.as_i64().map_err(|_| "解码参数未支持".into()),
@@ -609,15 +633,20 @@ fn unfilter(
     let row = (width as usize * channels * bits).div_ceil(8);
     let bpp = (channels * bits).div_ceil(8);
     if predictor == 2 {
-        if bits != 8 {
-            return Err("保留非 8 位 TIFF 预测器".into());
+        if !matches!(bits, 1 | 2 | 4 | 8) || bytes.len() != row * height as usize {
+            return Err("TIFF 预测器数据布局无效".into());
         }
-        if bytes.len() != row * height as usize {
-            return Err("TIFF 预测器数据长度错误".into());
-        }
+        let mask = ((1u16 << bits) - 1) as u8;
         for line in bytes.chunks_exact_mut(row) {
-            for i in channels..row {
-                line[i] = line[i].wrapping_add(line[i - channels]);
+            for i in channels..width as usize * channels {
+                let offset = i * bits;
+                let previous = (i - channels) * bits;
+                let shift = 8 - bits - offset % 8;
+                let previous_shift = 8 - bits - previous % 8;
+                let value = ((line[offset / 8] >> shift) & mask)
+                    .wrapping_add((line[previous / 8] >> previous_shift) & mask)
+                    & mask;
+                line[offset / 8] = (line[offset / 8] & !(mask << shift)) | (value << shift);
             }
         }
         return Ok(bytes);

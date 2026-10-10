@@ -78,7 +78,11 @@ fn fidelity_combines_vector_compaction_and_reuse_with_full_resolution_images() {
                 .contains("Selectable text")
         );
         let image = result.get_object(f.image).unwrap().as_stream().unwrap();
-        let pixels = image::load_from_memory(&image.content).unwrap().to_rgb8();
+        let pixels = if image.dict.get(b"Filter").unwrap().as_name().unwrap() == b"FlateDecode" {
+            image::RgbImage::from_raw(1200, 1600, image.decompressed_content().unwrap()).unwrap()
+        } else {
+            image::load_from_memory(&image.content).unwrap().to_rgb8()
+        };
         assert_eq!(pixels.dimensions(), (1200, 1600));
         let mean_squared_error = original_pixels
             .iter()

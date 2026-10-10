@@ -2,6 +2,15 @@
 // Columns: English, French, Spanish, Korean, Japanese, German, Portuguese.
 // Keep placeholders identical in every column; paths and file names are values.
 export const catalog = {
+  已同步优化图片和透明边缘: [
+    "Optimized the image and transparent edges together.",
+    "Image et contours transparents optimisés ensemble.",
+    "Imagen y bordes transparentes optimizados juntos.",
+    "이미지와 투명 가장자리를 함께 최적화했습니다.",
+    "画像と透明な輪郭を同時に最適化しました。",
+    "Bild und transparente Kanten gemeinsam optimiert.",
+    "Imagem e bordas transparentes otimizadas em conjunto.",
+  ],
   "第 {page} 页的批注或表单无法完整转为图片，请使用保留原始内容模式": [
     "Annotations or forms on page {page} cannot be fully rendered. Use Preserve original content.",
     "Les annotations ou formulaires de la page {page} ne peuvent pas être entièrement rendus. Conservez le contenu original.",

@@ -1,27 +1,45 @@
+mod advanced;
 mod attachments;
 mod audit;
 mod ccitt;
+mod cmyk_jpeg;
+mod coalesce;
+mod exact_sharing;
+mod font_subset;
 mod form_precision;
 mod form_usage;
+mod identity;
 mod image_encoding;
+mod image_input;
 mod images;
 mod inspect;
 mod jpeg;
 mod jpeg_lossless;
+mod large_images;
 mod lossless;
 mod native_samples;
 mod page_image;
 mod paths;
 mod raster;
 mod raster_input;
+mod raster_quality;
+pub use raster_quality::{RasterQuality, compare_raster_quality};
 mod resource_graph;
+mod resource_leaves;
 mod resources;
 mod reusable_paths;
+mod stream_candidates;
+mod stream_filters;
 mod structure;
+mod transparent_images;
 mod usage;
 mod validate;
+mod vector_state;
 mod writing;
 
+pub use advanced::Stats as AdvancedOptimization;
+pub use image_encoding::{RgbFlateStats, RgbSampleProof};
+pub use image_input::Preparation as ImagePreparation;
 use lopdf::{Document, LoadOptions};
 pub use raster_input::{RasterManifest, RasterPage, RasterPlan, prepare_raster};
 use serde::{Deserialize, Serialize};
@@ -34,6 +52,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
+pub use stream_candidates::{StrategyCandidate, StreamOptimization};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -264,65 +283,177 @@ pub struct Report {
     pub reduction_percent: f64,
     pub pages: usize,
     pub optimized_streams: usize,
+    /// Attempts in the selected pipeline; source identities may be renumbered later.
     pub images: Vec<ImageResult>,
+    pub output_images: Vec<FinalImageResult>,
+    pub image_optimization: ImageOptimization,
+    pub image_preparation: ImagePreparation,
+    pub rgb_flate: RgbFlateStats,
+    pub advanced_optimization: AdvancedOptimization,
     pub size_before: SizeAudit,
     pub size_after: SizeAudit,
     pub stages: Vec<StageResult>,
     pub writer: WriterConfiguration,
+    pub strategy_candidates: Vec<StrategyCandidate>,
+    pub stream_optimization: StreamOptimization,
     pub warnings: Vec<String>,
     pub elapsed_ms: u64,
 }
-pub fn inspect_file(path: impl AsRef<Path>, limits: &Limits) -> Result<DocumentInfo> {
-    let (bytes, doc) = load(path.as_ref(), limits)?;
-    let mut info = inspect::document(&doc, limits)?;
-    info.bytes = bytes.len() as u64;
-    Ok(info)
+#[derive(Debug, Clone, Serialize)]
+pub struct FinalImageResult {
+    /// Object identity in the final serialized PDF, after any renumbering.
+    pub object: String,
+    pub bytes: usize,
+    pub dimensions: [u32; 2],
+    pub filters: Vec<String>,
 }
-/// Byte categories count each encoded stream once, including object/xref
-/// containers. The remainder is syntax and dictionaries, not removable waste.
-pub fn audit_file(path: impl AsRef<Path>, limits: &Limits) -> Result<SizeAudit> {
-    let (bytes, doc) = load(path.as_ref(), limits)?;
-    Ok(audit::size(&doc, bytes.len() as u64))
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ImageOptimization {
+    pub status: String,
+    pub baseline_bytes: u64,
+    pub candidate_bytes: Option<u64>,
+    pub selected: bool,
+    pub rejection: Option<String>,
 }
-/// Keeps the source and all existing outputs intact. Preserve mode commits only
-/// a smaller result; raster mode commits the requested image-page format even
-/// when larger. Both validate output and check cancellation between steps.
-pub fn compress(
-    input: impl AsRef<Path>,
-    output: impl AsRef<Path>,
-    options: &Options,
-    cancel: &AtomicBool,
-    mut progress: impl FnMut(Progress),
-) -> Result<Report> {
-    let started = Instant::now();
-    options.check()?;
-    check_cancel(cancel)?;
-    let input = input.as_ref();
-    let output = output.as_ref();
-    if output.try_exists()? {
-        return Err(Error::OutputExists(output.to_owned()));
+fn final_images(doc: &Document) -> Vec<FinalImageResult> {
+    doc.objects
+        .iter()
+        .filter_map(|(id, o)| {
+            let stream = o.as_stream().ok()?;
+            if !inspect::named(&stream.dict, b"Subtype", b"Image") {
+                return None;
+            }
+            let dim = |key: &[u8]| {
+                stream
+                    .dict
+                    .get(key)
+                    .ok()
+                    .and_then(|o| doc.dereference(o).ok())
+                    .and_then(|(_, o)| o.as_i64().ok())
+                    .and_then(|n| u32::try_from(n).ok())
+                    .unwrap_or(0)
+            };
+            let filters = stream_filters::filters(doc, stream)
+                .map(|f| {
+                    f.iter()
+                        .map(|f| String::from_utf8_lossy(&f.name).into_owned())
+                        .collect()
+                })
+                .unwrap_or_else(|_| vec!["unresolved".into()]);
+            Some(FinalImageResult {
+                object: format!("{} {}", id.0, id.1),
+                bytes: stream.content.len(),
+                dimensions: [dim(b"Width"), dim(b"Height")],
+                filters,
+            })
+        })
+        .collect()
+}
+fn eligible_alternate(doc: &Document, limits: &Limits) -> bool {
+    if doc.objects.len() > 50_000 {
+        return false;
     }
-    let parent = output
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
+    let mut pending: Vec<_> = doc.objects.values().map(|o| (o, 0usize)).collect();
+    pending.extend(doc.trailer.iter().map(|(_, o)| (o, 0usize)));
+    let mut work = limits.max_operations.min(500_000);
+    let mut bytes = 0usize;
+    while let Some((o, depth)) = pending.pop() {
+        if work == 0 || depth > 64 {
+            return false;
+        }
+        work -= 1;
+        bytes = bytes.saturating_add(32);
+        let dict = match o {
+            lopdf::Object::Name(v) | lopdf::Object::String(v, _) => {
+                bytes = bytes.saturating_add(v.len());
+                None
+            }
+            lopdf::Object::Array(a) => {
+                pending.extend(a.iter().map(|o| (o, depth + 1)));
+                None
+            }
+            lopdf::Object::Dictionary(d) => Some(d),
+            lopdf::Object::Stream(s) => {
+                bytes = bytes.saturating_add(s.content.len());
+                Some(&s.dict)
+            }
+            _ => None,
+        };
+        if let Some(d) = dict {
+            for (k, o) in d.iter() {
+                bytes = bytes.saturating_add(k.len());
+                pending.push((o, depth + 1));
+            }
+        }
+        if bytes > 64 * 1024 * 1024 {
+            return false;
+        }
+    }
+    true
+}
+
+struct Built {
+    candidate: NamedTempFile,
+    image_results: Vec<ImageResult>,
+    stages: Vec<StageResult>,
+    warnings: Vec<String>,
+    writer: WriterConfiguration,
+    strategy_candidates: Vec<StrategyCandidate>,
+    stream_optimization: StreamOptimization,
+    optimized_streams: usize,
+    size_after: SizeAudit,
+    output_images: Vec<FinalImageResult>,
+    image_preparation: image_input::Preparation,
+    rgb_flate: image_encoding::RgbFlateStats,
+    raster_alternate: Option<(Document, Vec<ImageResult>)>,
+    transparency: transparent_images::Stats,
+}
+#[allow(clippy::too_many_arguments)]
+fn build_candidate(
+    source: Vec<u8>,
+    mut doc: Document,
+    options: &Options,
+    info: &DocumentInfo,
+    parent: &Path,
+    cancel: &AtomicBool,
+    progress: &mut impl FnMut(Progress),
+    enhanced: bool,
+    paired: bool,
+    encoder: &mut jpeg::Encoder,
+    ready_images: Option<Vec<ImageResult>>,
+) -> Result<Built> {
     let emit = |phase| Progress {
         phase,
         completed: 0,
         total: 0,
     };
-    progress(emit(Phase::Reading));
-    let (source, mut doc) = load(input, &options.limits)?;
-    let source_hash = Sha256::digest(&source);
-    let original_bytes = source.len() as u64;
-    check_cancel(cancel)?;
-    progress(emit(Phase::Inspecting));
-    let info = inspect::document(&doc, &options.limits)?;
-    let size_before = audit::size(&doc, original_bytes);
+    let original_images: std::collections::HashMap<_, _> =
+        if options.output_mode == OutputMode::Preserve {
+            final_images(&doc)
+                .into_iter()
+                .map(|i| (i.object, (i.bytes, i.dimensions)))
+                .collect()
+        } else {
+            Default::default()
+        };
     let mut stages = Vec::new();
+    let image_preparation = if enhanced && options.output_mode == OutputMode::Preserve {
+        let stage = audit::Stage::start("image_preparation", &doc);
+        let preparation = image_input::prepare(&mut doc, &options.limits, cancel)?;
+        stages.push(stage.finish(&doc));
+        preparation
+    } else {
+        image_input::Preparation {
+            status: "not_applicable".into(),
+            ..Default::default()
+        }
+    };
+    let mut rgb_budget = image_encoding::RgbBudget::new(&options.limits);
+    let mut raster_alternate = None;
     let mut warnings = Vec::new();
-    let image_results;
+    let mut image_results;
     let mut protected_images = HashSet::new();
+    let mut transparency = transparent_images::Stats::default();
     if options.output_mode == OutputMode::Preserve {
         let stage = audit::Stage::start("resources", &doc);
         let removed = resources::cleanup(&mut doc, &options.limits, cancel)?;
@@ -339,18 +470,40 @@ pub fn compress(
         stages.push(stage.finish(&doc));
     }
     let image_stage = audit::Stage::start("images", &doc);
-    if options.output_mode == OutputMode::Raster {
-        let (mut rebuilt, results) = if let Some(manifest) = &options.raster_manifest {
-            raster_input::rebuild(source, &doc, manifest, options, cancel, &mut progress)?
+    if let Some(results) = ready_images {
+        image_results = results;
+    } else if options.output_mode == OutputMode::Raster {
+        let (mut rebuilt, results, replacements) = if let Some(manifest) = &options.raster_manifest
+        {
+            raster_input::rebuild(
+                source,
+                &doc,
+                manifest,
+                options,
+                cancel,
+                progress,
+                &mut rgb_budget,
+            )?
         } else {
             raster::check_annotations(&doc, cancel)?;
-            raster::rebuild(source, &doc, options, cancel, &mut progress)?
+            raster::rebuild(source, &doc, options, cancel, progress, &mut rgb_budget)?
         };
         let attachment_count = attachments::copy(&doc, &mut rebuilt, &options.limits, cancel)?;
         if attachment_count > 0 {
             warnings.push(format!(
                 "已保留 {attachment_count} 个嵌入附件，附件数据未重新编码"
             ));
+        }
+        if !replacements.is_empty() && eligible_alternate(&rebuilt, &options.limits) {
+            let mut alternate = rebuilt.clone();
+            let mut reports = results.clone();
+            for (id, stream, report) in replacements {
+                alternate.objects.insert(id, lopdf::Object::Stream(stream));
+                if let Some(old) = reports.iter_mut().find(|r| r.object == report.object) {
+                    *old = report;
+                }
+            }
+            raster_alternate = Some((alternate, reports));
         }
         doc = rebuilt;
         image_results = results;
@@ -360,7 +513,17 @@ pub fn compress(
         }
     } else {
         drop(source);
-        let usage = usage::analyze(&doc, &options.limits, cancel)?;
+        let mut usage = usage::analyze(&doc, &options.limits, cancel)?;
+        let original_protected_count = usage.protected.len();
+        let mut paired_images = HashSet::new();
+        if paired {
+            let stage = audit::Stage::start("paired_transparency", &doc);
+            let (stats, paired) = transparent_images::optimize(&mut doc, options, &usage, cancel)?;
+            transparency = stats;
+            paired_images.clone_from(&paired);
+            usage.protected.extend(paired);
+            stages.push(stage.finish(&doc));
+        }
         protected_images.clone_from(&usage.protected);
         {
             if !usage.unknown.is_empty() {
@@ -369,13 +532,39 @@ pub fn compress(
                     usage.unknown.len()
                 ));
             }
-            if !usage.protected.is_empty() {
+            if original_protected_count > 0 {
                 warnings.push(format!(
                     "已保留 {} 张特殊调用或交互外观共享图片的原始编码",
-                    usage.protected.len()
+                    original_protected_count
                 ));
             }
-            image_results = images::optimize(&mut doc, options, &usage, cancel, &mut progress)?;
+            image_results = images::optimize(
+                &mut doc,
+                options,
+                &usage,
+                cancel,
+                progress,
+                enhanced,
+                encoder,
+                &mut rgb_budget,
+            )?;
+            for report in &mut image_results {
+                if paired_images
+                    .iter()
+                    .any(|id| format!("{} {}", id.0, id.1) == report.object)
+                {
+                    report.reason = "已同步优化图片和透明边缘".into();
+                }
+            }
+        }
+    }
+    if options.output_mode == OutputMode::Preserve {
+        for report in &mut image_results {
+            if let Some(original) = original_images.get(&report.object) {
+                report.before_bytes = original.0;
+                report.before_dimensions = original.1;
+                report.changed |= report.after_bytes != report.before_bytes;
+            }
         }
     }
     check_cancel(cancel)?;
@@ -436,7 +625,7 @@ pub fn compress(
             0
         } else {
             resource_graph::deduplicate(&mut doc, &options.limits, cancel)?
-        } + structure::deduplicate(&mut doc, cancel)?;
+        } + structure::deduplicate(&mut doc, &options.limits, cancel)?;
         doc.prune_objects();
         if merged > 0 {
             warnings.push(format!("已合并 {merged} 个重复数据资源"));
@@ -472,8 +661,263 @@ pub fn compress(
     progress(emit(Phase::Validating));
     let result_doc = Document::load_with_options(candidate.path(), load_options(&options.limits))?;
     validate::round_trip(&doc, &result_doc)?;
-    let size_after = audit::size(&result_doc, candidate_bytes);
+    let mut size_after = audit::size(&result_doc, candidate_bytes);
     drop(result_doc);
+    let (strategy_candidates, stream_optimization) = if options.output_mode == OutputMode::Preserve
+    {
+        let choice = stream_candidates::choose(
+            &mut doc,
+            candidate,
+            &mut writer,
+            &options.limits,
+            cancel,
+            info.has_interactive_content,
+        )?;
+        if let Some(audit) = choice.size_after {
+            size_after = audit;
+        }
+        optimized_streams += choice.added_streams;
+        stages.extend(choice.stages);
+        candidate = choice.file;
+        (choice.strategies, choice.diagnostics)
+    } else {
+        (
+            vec![StrategyCandidate {
+                strategy: "current".into(),
+                bytes: candidate_bytes,
+                selected: true,
+            }],
+            StreamOptimization {
+                status: "not_applicable".into(),
+                ..Default::default()
+            },
+        )
+    };
+    let final_doc = Document::load_with_options(candidate.path(), load_options(&options.limits))?;
+    let output_images = final_images(&final_doc);
+    Ok(Built {
+        candidate,
+        image_results,
+        stages,
+        warnings,
+        writer,
+        strategy_candidates,
+        stream_optimization,
+        optimized_streams,
+        size_after,
+        output_images,
+        image_preparation,
+        rgb_flate: rgb_budget.stats,
+        transparency,
+        raster_alternate,
+    })
+}
+pub fn inspect_file(path: impl AsRef<Path>, limits: &Limits) -> Result<DocumentInfo> {
+    let (bytes, doc) = load(path.as_ref(), limits)?;
+    let mut info = inspect::document(&doc, limits)?;
+    info.bytes = bytes.len() as u64;
+    Ok(info)
+}
+/// Byte categories count each encoded stream once, including object/xref
+/// containers. The remainder is syntax and dictionaries, not removable waste.
+pub fn audit_file(path: impl AsRef<Path>, limits: &Limits) -> Result<SizeAudit> {
+    let (bytes, doc) = load(path.as_ref(), limits)?;
+    Ok(audit::size(&doc, bytes.len() as u64))
+}
+/// Keeps the source and all existing outputs intact. Preserve mode commits only
+/// a smaller result; raster mode commits the requested image-page format even
+/// when larger. Both validate output and check cancellation between steps.
+pub fn compress(
+    input: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    options: &Options,
+    cancel: &AtomicBool,
+    mut progress: impl FnMut(Progress),
+) -> Result<Report> {
+    let started = Instant::now();
+    options.check()?;
+    check_cancel(cancel)?;
+    let input = input.as_ref();
+    let output = output.as_ref();
+    if output.try_exists()? {
+        return Err(Error::OutputExists(output.to_owned()));
+    }
+    let parent = output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let emit = |phase| Progress {
+        phase,
+        completed: 0,
+        total: 0,
+    };
+    progress(emit(Phase::Reading));
+    let (source, doc) = load(input, &options.limits)?;
+    let source_hash = Sha256::digest(&source);
+    let original_bytes = source.len() as u64;
+    check_cancel(cancel)?;
+    progress(emit(Phase::Inspecting));
+    let info = inspect::document(&doc, &options.limits)?;
+    let size_before = audit::size(&doc, original_bytes);
+    let original_output_images = final_images(&doc);
+    let try_pairs = options.output_mode == OutputMode::Preserve
+        && matches!(options.preset, Preset::Balanced | Preset::Small)
+        && eligible_alternate(&doc, &options.limits)
+        && doc
+            .objects
+            .values()
+            .any(|o| o.as_stream().is_ok_and(|s| s.dict.has(b"SMask")));
+    let alternate = (options.output_mode == OutputMode::Preserve
+        && eligible_alternate(&doc, &options.limits))
+    .then(|| doc.clone());
+    let mut encoder = jpeg::Encoder::default();
+    let mut chosen = build_candidate(
+        source,
+        doc,
+        options,
+        &info,
+        parent,
+        cancel,
+        &mut progress,
+        false,
+        false,
+        &mut encoder,
+        None,
+    )?;
+    let baseline_bytes = chosen.candidate.as_file().metadata()?.len();
+    let mut image_optimization = ImageOptimization {
+        status: "skipped_budget".into(),
+        baseline_bytes,
+        ..Default::default()
+    };
+    let mut preparation = chosen.image_preparation.clone();
+    let mut rgb_flate = chosen.rgb_flate.clone();
+    let next = alternate.map(|doc| (doc, None)).or_else(|| {
+        chosen
+            .raster_alternate
+            .take()
+            .map(|(doc, images)| (doc, Some(images)))
+    });
+    if let Some((doc, ready)) = next {
+        match build_candidate(
+            Vec::new(),
+            doc,
+            options,
+            &info,
+            parent,
+            cancel,
+            &mut progress,
+            true,
+            false,
+            &mut encoder,
+            ready,
+        ) {
+            Ok(mut enhanced) => {
+                let bytes = enhanced.candidate.as_file().metadata()?.len();
+                image_optimization.candidate_bytes = Some(bytes);
+                preparation = enhanced.image_preparation.clone();
+                if options.output_mode == OutputMode::Preserve {
+                    rgb_flate = enhanced.rgb_flate.clone();
+                }
+                image_optimization.selected = bytes < baseline_bytes;
+                image_optimization.status = if bytes < baseline_bytes {
+                    "selected"
+                } else {
+                    "kept_baseline"
+                }
+                .into();
+                let strategies = vec![
+                    StrategyCandidate {
+                        strategy: "image_baseline".into(),
+                        bytes: baseline_bytes,
+                        selected: bytes >= baseline_bytes,
+                    },
+                    StrategyCandidate {
+                        strategy: "image_enhanced".into(),
+                        bytes,
+                        selected: bytes < baseline_bytes,
+                    },
+                ];
+                if bytes < baseline_bytes {
+                    if options.output_mode == OutputMode::Raster {
+                        enhanced.warnings.clone_from(&chosen.warnings);
+                    }
+                    chosen = enhanced;
+                }
+                chosen.strategy_candidates.extend(strategies);
+            }
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(error) => {
+                image_optimization.status = "rejected".into();
+                image_optimization.rejection = Some(error.to_string());
+            }
+        }
+    } else if options.output_mode == OutputMode::Raster {
+        image_optimization.status = if rgb_flate.skipped_budget > 0 {
+            "skipped_budget"
+        } else {
+            "no_improving_page_candidate"
+        }
+        .into();
+    }
+    if try_pairs {
+        check_cancel(cancel)?;
+        let (_, original) = load(input, &options.limits)?;
+        let baseline = chosen.candidate.as_file().metadata()?.len();
+        match build_candidate(
+            Vec::new(),
+            original,
+            options,
+            &info,
+            parent,
+            cancel,
+            &mut progress,
+            true,
+            true,
+            &mut encoder,
+            None,
+        ) {
+            Ok(candidate) => {
+                let bytes = candidate.candidate.as_file().metadata()?.len();
+                let selected = bytes < baseline;
+                if selected {
+                    preparation = candidate.image_preparation.clone();
+                    rgb_flate = candidate.rgb_flate.clone();
+                    chosen = candidate;
+                }
+                chosen.strategy_candidates.push(StrategyCandidate {
+                    strategy: "paired_transparency".into(),
+                    bytes,
+                    selected,
+                });
+            }
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(_) => { /* Optional pair candidate leaves both earlier plans intact. */ }
+        }
+    }
+    let advanced_optimization = match advanced::choose(&mut chosen, options, parent, cancel) {
+        Ok(stats) => stats,
+        Err(Error::Cancelled) => return Err(Error::Cancelled),
+        Err(error) => AdvancedOptimization {
+            status: "rejected".into(),
+            rejection: Some(error.to_string()),
+            ..Default::default()
+        },
+    };
+    let Built {
+        candidate,
+        image_results,
+        stages,
+        mut warnings,
+        writer,
+        strategy_candidates,
+        stream_optimization,
+        optimized_streams,
+        mut size_after,
+        mut output_images,
+        ..
+    } = chosen;
+    let candidate_bytes = candidate.as_file().metadata()?.len();
     let current = read_bounded(input, options.limits.max_file_bytes)?;
     if Sha256::digest(&current) != source_hash {
         return Err(Error::InputChanged);
@@ -502,6 +946,10 @@ pub fn compress(
         } else {
             (Outcome::Unchanged, None, original_bytes)
         };
+    if outcome == Outcome::Unchanged {
+        size_after = size_before.clone();
+        output_images = original_output_images;
+    }
     progress(Progress {
         phase: Phase::Completed,
         completed: 1,
@@ -522,10 +970,17 @@ pub fn compress(
         pages: info.pages,
         optimized_streams,
         images: image_results,
+        output_images,
+        image_optimization,
+        image_preparation: preparation,
+        rgb_flate,
+        advanced_optimization,
         size_before,
         size_after,
         stages,
         writer,
+        strategy_candidates,
+        stream_optimization,
         warnings,
         elapsed_ms: started.elapsed().as_millis() as u64,
     })

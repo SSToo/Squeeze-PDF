@@ -120,7 +120,8 @@ pub(crate) fn optimize(
             };
             let stream = doc.get_object(id)?.as_stream()?;
             let original_size = stream.content.len();
-            let Ok(raw) = stream.get_plain_content_with_limit(limits.max_stream_bytes) else {
+            let Ok(raw) = crate::stream_filters::content(doc, stream, limits.max_stream_bytes)
+            else {
                 continue;
             };
             let mut resources = match resource {

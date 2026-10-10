@@ -131,7 +131,12 @@ pub(crate) fn rebuild(
     options: &Options,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
-) -> Result<(Document, Vec<ImageResult>)> {
+    rgb_budget: &mut crate::image_encoding::RgbBudget,
+) -> Result<(
+    Document,
+    Vec<ImageResult>,
+    Vec<crate::page_image::PageReplacement>,
+)> {
     let manifest: RasterManifest =
         serde_json::from_slice(&crate::read_bounded(manifest_path, 16_384)?)
             .map_err(|e| Error::Invalid(format!("页面像素清单无效：{e}")))?;
@@ -149,6 +154,7 @@ pub(crate) fn rebuild(
     let tree = doc.new_object_id();
     let mut kids = Vec::new();
     let mut reports = Vec::new();
+    let mut replacements = Vec::new();
     let mut total = 0u64;
     let mut encoder = crate::jpeg::Encoder::default();
     for (index, page) in plan.pages.iter().enumerate() {
@@ -169,13 +175,15 @@ pub(crate) fn rebuild(
             )));
         }
         let encoding_started = std::time::Instant::now();
-        let (image, encoding, codec, candidates) = crate::page_image::encode(
+        let ((image, encoding, codec, candidates), alternate) = crate::page_image::encode_variants(
             pixels,
             width,
             height,
             options.preset,
             options.quality(),
             &mut encoder,
+            rgb_budget,
+            cancel,
         )?;
         total = total.saturating_add(image.content.len() as u64);
         if total > options.limits.max_file_bytes {
@@ -206,6 +214,16 @@ pub(crate) fn rebuild(
                 index + 1
             ),
         });
+        if let Some((stream, label, codec, candidates)) = alternate {
+            let mut report = reports.last().expect("page report").clone();
+            report.after_bytes = stream.content.len();
+            report.encoding = codec;
+            report.candidates = candidates;
+            report
+                .reason
+                .push_str(&format!("，新增精确 RGB 候选 {label}"));
+            replacements.push((image_id, stream, report));
+        }
     }
     doc.objects.insert(
         tree,
@@ -215,5 +233,5 @@ pub(crate) fn rebuild(
     );
     let catalog = doc.add_object(dictionary! {"Type"=>"Catalog", "Pages"=>tree});
     doc.trailer.set("Root", catalog);
-    Ok((doc, reports))
+    Ok((doc, reports, replacements))
 }

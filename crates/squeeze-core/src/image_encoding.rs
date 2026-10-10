@@ -1,13 +1,146 @@
 //! Exact sample encodings shared by original images and rendered pages.
 use crate::{EncodingCandidate, Result, lossless};
 use lopdf::{Dictionary, Document, Object, Stream, dictionary};
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::{sync::atomic::AtomicBool, time::Instant};
 
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct RgbFlateStats {
+    pub considered: usize,
+    pub attempted: usize,
+    pub skipped_photo: usize,
+    pub skipped_budget: usize,
+    pub decoded_work_bytes: usize,
+    pub elapsed_ms: u64,
+    /// Hashes of fixed input samples chosen by exact RGB candidates. They are
+    /// computed from the input pixel buffers, independent of PDF decoding.
+    pub sample_proofs: Vec<RgbSampleProof>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct RgbSampleProof {
+    pub dimensions: [u32; 2],
+    pub bytes: usize,
+    pub sha256: String,
+}
+pub(crate) struct RgbBudget {
+    pub stats: RgbFlateStats,
+    remaining: usize,
+    max_sample: usize,
+    started: Instant,
+}
+impl RgbBudget {
+    pub(crate) fn new(limits: &crate::Limits) -> Self {
+        Self {
+            stats: RgbFlateStats::default(),
+            remaining: 32 * 1024 * 1024,
+            max_sample: limits.max_stream_bytes.min(8 * 1024 * 1024),
+            started: Instant::now(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct Candidates {
     pub best: Stream,
     pub encoding: String,
     pub entries: Vec<EncodingCandidate>,
     cost: usize,
+}
+
+/// Sampling schedules exact work; it never changes samples or establishes
+/// equivalence. Sparse rows and both sides cover more than a leading thumbnail.
+pub(crate) fn add_rgb_extra(
+    candidates: &mut Candidates,
+    base: &Dictionary,
+    pixels: &[u8],
+    width: u32,
+    channels: usize,
+    budget: &mut RgbBudget,
+    cancel: &AtomicBool,
+) -> Result<()> {
+    if channels != 3
+        || candidates
+            .entries
+            .iter()
+            .any(|c| c.encoding.starts_with("flate/") || c.encoding.starts_with("native-flate/"))
+    {
+        return Ok(());
+    }
+    crate::check_cancel(cancel)?;
+    budget.stats.considered += 1;
+    let started = Instant::now();
+    let width = width as usize;
+    let stride = width
+        .checked_mul(3)
+        .ok_or_else(|| crate::Error::Limit("RGB 行宽超过限制".into()))?;
+    if stride == 0 || !pixels.len().is_multiple_of(stride) || pixels.is_empty() {
+        return Err(crate::Error::Invalid("RGB 样本布局无效".into()));
+    }
+    let work = pixels.len().saturating_mul(3);
+    if pixels.len() > budget.max_sample
+        || work > budget.remaining
+        || budget.stats.attempted >= 8
+        || budget.stats.elapsed_ms >= 4000
+        || budget.started.elapsed().as_secs() >= 12
+    {
+        budget.stats.skipped_budget += 1;
+        return Ok(());
+    }
+    let height = pixels.len() / stride;
+    let columns = width.min(512);
+    let rows = height.min(8);
+    let mut probe = Vec::with_capacity(columns * 3 * rows);
+    for i in 0..rows {
+        let y = if rows == 1 {
+            0
+        } else {
+            i * (height - 1) / (rows - 1)
+        };
+        let x = if i % 2 == 0 { 0 } else { width - columns };
+        probe.extend_from_slice(&pixels[y * stride + x * 3..y * stride + (x + columns) * 3]);
+    }
+    let mut probe_bytes = lossless::deflate(&probe)?.len();
+    for strategy in [1, 2, 5] {
+        crate::check_cancel(cancel)?;
+        probe_bytes =
+            probe_bytes.min(lossless::deflate(&predict(&probe, columns * 3, 3, strategy))?.len());
+    }
+    if probe_bytes.saturating_mul(4) > probe.len().saturating_mul(3) {
+        budget.stats.skipped_photo += 1;
+    } else {
+        budget.remaining -= work;
+        budget.stats.attempted += 1;
+        budget.stats.decoded_work_bytes += work;
+        add_flate_selected(
+            candidates,
+            base,
+            pixels,
+            stride,
+            3,
+            8,
+            3,
+            width as u32,
+            "rgb-extra",
+            Some(cancel),
+            &[Some(1), Some(2), Some(6)],
+        )?;
+        if candidates.encoding.starts_with("rgb-extra/")
+            && candidates.best.decompressed_content()? != pixels
+        {
+            return Err(crate::Error::Validation("RGB 精确候选样本校验失败".into()));
+        }
+        if candidates.encoding.starts_with("rgb-extra/") {
+            budget.stats.sample_proofs.push(RgbSampleProof {
+                dimensions: [width as u32, height as u32],
+                bytes: pixels.len(),
+                sha256: format!("{:x}", Sha256::digest(pixels)),
+            });
+        }
+    }
+    budget.stats.elapsed_ms += started.elapsed().as_millis() as u64;
+    Ok(())
 }
 impl Candidates {
     pub fn new(stream: Stream, encoding: &str, lossless: bool) -> Result<Self> {
@@ -235,11 +368,39 @@ fn add_flate(
         Some(5),
         Some(6),
     ];
-    for &strategy in if uniform {
-        &strategies[..1]
-    } else {
-        &strategies
-    } {
+    add_flate_selected(
+        candidates,
+        base,
+        raw,
+        stride,
+        bpp,
+        bits,
+        colors,
+        width,
+        label,
+        cancel,
+        if uniform {
+            &strategies[..1]
+        } else {
+            &strategies
+        },
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn add_flate_selected(
+    candidates: &mut Candidates,
+    base: &Dictionary,
+    raw: &[u8],
+    stride: usize,
+    bpp: usize,
+    bits: usize,
+    colors: usize,
+    width: u32,
+    label: &str,
+    cancel: Option<&AtomicBool>,
+    strategies: &[Option<u8>],
+) -> Result<()> {
+    for &strategy in strategies {
         if let Some(cancel) = cancel {
             crate::check_cancel(cancel)?;
         }
@@ -392,5 +553,90 @@ mod tests {
             }
             assert_eq!(palette(&pixels, 3).unwrap(), (lookup, indices));
         }
+    }
+}
+
+#[cfg(test)]
+mod rgb_tests {
+    use super::*;
+    #[test]
+    fn more_than_256_colors_gain_an_exact_rgb_candidate_and_noise_is_skipped() {
+        let (w, h) = (400, 250);
+        let raw: Vec<u8> = (0..h)
+            .flat_map(|y| {
+                (0..w).flat_map(move |x| [(x % 256) as u8, (y % 256) as u8, ((x + y) % 256) as u8])
+            })
+            .collect();
+        assert!(palette(&raw, 3).is_none());
+        let base = dictionary! {"Subtype"=>"Image","Width"=>w,"Height"=>h,"BitsPerComponent"=>8,"ColorSpace"=>"DeviceRGB"};
+        let mut c = Candidates::new(Stream::new(base.clone(), raw.clone()), "raw", true).unwrap();
+        let mut budget = RgbBudget::new(&crate::Limits::default());
+        add_rgb_extra(
+            &mut c,
+            &base,
+            &raw,
+            w as u32,
+            3,
+            &mut budget,
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(budget.stats.attempted, 1);
+        assert!(c.encoding.starts_with("rgb-extra/"));
+        assert_eq!(
+            crate::native_samples::read(&Document::new(), &c.best, &crate::Options::default())
+                .unwrap()
+                .bytes,
+            raw
+        );
+        let mut seed = 0x2468ace1u32;
+        let noise: Vec<u8> = (0..w * h * 3)
+            .map(|_| {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                seed as u8
+            })
+            .collect();
+        let mut c = Candidates::new(Stream::new(base.clone(), noise.clone()), "raw", true).unwrap();
+        add_rgb_extra(
+            &mut c,
+            &base,
+            &noise,
+            w as u32,
+            3,
+            &mut budget,
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(budget.stats.skipped_photo, 1);
+        assert_eq!(c.encoding, "raw");
+        let mut budget = RgbBudget::new(&crate::Limits {
+            max_stream_bytes: 10,
+            ..Default::default()
+        });
+        add_rgb_extra(
+            &mut c,
+            &base,
+            &noise,
+            w as u32,
+            3,
+            &mut budget,
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(budget.stats.skipped_budget, 1);
+        assert!(matches!(
+            add_rgb_extra(
+                &mut c,
+                &base,
+                &noise,
+                w as u32,
+                3,
+                &mut budget,
+                &AtomicBool::new(true)
+            ),
+            Err(crate::Error::Cancelled)
+        ));
     }
 }

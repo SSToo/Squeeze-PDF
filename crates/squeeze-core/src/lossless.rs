@@ -1,23 +1,18 @@
 use crate::{Limits, Result, check_cancel, inspect};
-use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
+use flate2::{Compression, write::ZlibEncoder};
 use lopdf::{Document, Object, ObjectId};
 use std::{
     collections::HashSet,
-    io::{Read, Write},
+    io::Write,
     num::NonZeroU64,
     sync::atomic::AtomicBool,
     time::{Duration, Instant},
 };
 pub(crate) fn inflate(bytes: &[u8], limit: usize) -> std::io::Result<Vec<u8>> {
-    let mut result = Vec::new();
-    ZlibDecoder::new(bytes)
-        .take(limit as u64 + 1)
-        .read_to_end(&mut result)?;
-    if result.len() > limit {
-        return Err(std::io::Error::other("解压结果超过限制"));
-    }
-    Ok(result)
+    crate::stream_filters::flate(bytes, limit, &AtomicBool::new(false))
+        .map_err(|e| std::io::Error::other(e.to_string()))
 }
+
 pub(crate) fn deflate(bytes: &[u8]) -> std::io::Result<Vec<u8>> {
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
     encoder.write_all(bytes)?;

@@ -17,7 +17,12 @@ pub(crate) fn rebuild(
     options: &Options,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
-) -> Result<(Document, Vec<ImageResult>)> {
+    rgb_budget: &mut crate::image_encoding::RgbBudget,
+) -> Result<(
+    Document,
+    Vec<ImageResult>,
+    Vec<crate::page_image::PageReplacement>,
+)> {
     check_filters(original, cancel)?;
     check_fonts(original, cancel)?;
     let pdf = Pdf::new(source).map_err(|e| Error::Invalid(format!("页面渲染解析失败：{e:?}")))?;
@@ -53,6 +58,7 @@ pub(crate) fn rebuild(
     let page_tree = result.new_object_id();
     let mut kids = Vec::new();
     let mut reports = Vec::new();
+    let mut replacements = Vec::new();
     let mut total_encoded = 0u64;
     let mut encoder = crate::jpeg::Encoder::default();
     for (index, page) in pdf.pages().iter().enumerate() {
@@ -181,14 +187,17 @@ pub(crate) fn rebuild(
         }
         check_cancel(cancel)?;
         let encoding_started = std::time::Instant::now();
-        let (encoded, encoding, codec, candidates) = crate::page_image::encode(
-            rgb,
-            width,
-            height,
-            options.preset,
-            options.quality(),
-            &mut encoder,
-        )?;
+        let ((encoded, encoding, codec, candidates), alternate) =
+            crate::page_image::encode_variants(
+                rgb,
+                width,
+                height,
+                options.preset,
+                options.quality(),
+                &mut encoder,
+                rgb_budget,
+                cancel,
+            )?;
         total_encoded = total_encoded.saturating_add(encoded.content.len() as u64);
         if total_encoded > options.limits.max_file_bytes {
             return Err(Error::Limit("图片 PDF 总大小超过限制，请降低画质".into()));
@@ -222,6 +231,16 @@ pub(crate) fn rebuild(
                 }
             ),
         });
+        if let Some((stream, label, codec, candidates)) = alternate {
+            let mut report = reports.last().expect("page report").clone();
+            report.after_bytes = stream.content.len();
+            report.encoding = codec;
+            report.candidates = candidates;
+            report
+                .reason
+                .push_str(&format!("，新增精确 RGB 候选 {label}"));
+            replacements.push((image, stream, report));
+        }
     }
     let count = kids.len() as i64;
     result.objects.insert(
@@ -230,7 +249,7 @@ pub(crate) fn rebuild(
     );
     let root = result.add_object(dictionary! {"Type"=>"Catalog","Pages"=>page_tree});
     result.trailer.set("Root", root);
-    Ok((result, reports))
+    Ok((result, reports, replacements))
 }
 
 // lopdf and the desktop PDF.js renderer can decode this PDF 2.0 extension,

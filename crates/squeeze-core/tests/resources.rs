@@ -89,7 +89,15 @@ fn unused_entries_are_removed_per_owner_with_inherited_resources_and_content_arr
     assert!(!objects(&out, f.page).has(b"Second"));
     assert!(objects(&out, page2).has(b"Second"));
     assert!(!objects(&out, page2).has(b"Photo"));
-    assert_eq!(out.get_page_content(f.page), f.doc.get_page_content(f.page));
+    let operations = |doc: &Document| {
+        lopdf::content::Content::decode(&doc.get_page_content(f.page))
+            .unwrap()
+            .operations
+            .into_iter()
+            .map(|o| (o.operator, o.operands))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(operations(&out), operations(&f.doc));
 }
 #[test]
 fn forms_without_resources_keep_their_inherited_image_names() {
@@ -164,7 +172,7 @@ fn decoded_image_sharing_keeps_distinct_color_transparency_and_tagged_identity()
             "tag" => s.dict.set("StructParent", 2),
             "decode" => s.dict.set(
                 "Decode",
-                vec![0.into(), 1.into(), 0.into(), 1.into(), 0.into(), 1.into()],
+                vec![1.into(), 0.into(), 1.into(), 0.into(), 1.into(), 0.into()],
             ),
             "mask" => s.dict.set(
                 "Mask",
@@ -198,19 +206,9 @@ fn decoded_image_sharing_keeps_distinct_color_transparency_and_tagged_identity()
         );
         if distinct == "same" {
             assert_eq!(x.get(b"Photo").unwrap().as_reference().unwrap(), f.image);
-            assert_eq!(
-                out.get_object(f.image)
-                    .unwrap()
-                    .as_stream()
-                    .unwrap()
-                    .content,
-                f.doc
-                    .get_object(second)
-                    .unwrap()
-                    .as_stream()
-                    .unwrap()
-                    .content
-            );
+            let actual = out.get_object(f.image).unwrap().as_stream().unwrap();
+            assert!(actual.decompressed_content().unwrap() == encoded);
+
             assert!(
                 report
                     .stages

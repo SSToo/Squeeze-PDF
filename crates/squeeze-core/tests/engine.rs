@@ -28,20 +28,10 @@ fn lossless_preserves_page_content_image_metadata_and_source() {
     assert!(report.saved_bytes > 1000);
     let result = Document::load(&output).unwrap();
     assert_eq!(content, result.get_page_content(f.page));
-    assert_eq!(
-        f.doc
-            .get_object(f.image)
-            .unwrap()
-            .as_stream()
-            .unwrap()
-            .content,
-        result
-            .get_object(f.image)
-            .unwrap()
-            .as_stream()
-            .unwrap()
-            .content
-    );
+    let before = f.doc.get_object(f.image).unwrap().as_stream().unwrap();
+    let after = result.get_object(f.image).unwrap().as_stream().unwrap();
+    // Lossless may change the stream encoding; the complete sample buffer must match.
+    assert!(before.content == after.decompressed_content().unwrap());
     assert_eq!(original, fs::read(input).unwrap());
     assert_eq!(
         result.trailer.get(b"Info").unwrap(),

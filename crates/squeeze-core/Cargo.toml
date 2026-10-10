@@ -19,7 +19,8 @@ mozjpeg-sys.workspace = true
 fax.workspace = true
 hayro-ccitt.workspace = true
 zopfli.workspace = true
+weezl.workspace = true
+subsetter = { version = "=0.2.6", default-features = false }
 
 [dev-dependencies]
 brotli = "=8.0.4"
-subsetter = { version = "=0.2.6", default-features = false }

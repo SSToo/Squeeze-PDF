@@ -51,7 +51,7 @@ pub(crate) fn has_default_spaces(
 fn integer(doc: &Document, object: &Object) -> Option<i64> {
     doc.dereference(object).ok()?.1.as_i64().ok()
 }
-fn channels(doc: &Document, space: &Object) -> Option<usize> {
+pub(crate) fn channels(doc: &Document, space: &Object) -> Option<usize> {
     match doc.dereference(space).ok()?.1 {
         Object::Name(n) => match n.as_slice() {
             b"DeviceGray" => Some(1),
@@ -230,20 +230,36 @@ pub(crate) fn read(doc: &Document, stream: &Stream, options: &Options) -> Option
     {
         return None;
     }
-    if predictor == 2 && matches!(bits, 8 | 16) {
+    if predictor == 2 {
         if bytes.len() != expected {
             return None;
         }
         let sample = bits / 8;
-        for row in bytes.chunks_exact_mut(stride) {
-            for i in (count * sample..stride).step_by(sample) {
-                if bits == 8 {
-                    row[i] = row[i].wrapping_add(row[i - count]);
-                } else {
-                    let previous = i - count * 2;
-                    let value = u16::from_be_bytes([row[i], row[i + 1]])
-                        .wrapping_add(u16::from_be_bytes([row[previous], row[previous + 1]]));
-                    row[i..i + 2].copy_from_slice(&value.to_be_bytes());
+        if bits < 8 {
+            let mask = (1u8 << bits) - 1;
+            for row in bytes.chunks_exact_mut(stride) {
+                for i in count..width * count {
+                    let offset = i * bits;
+                    let previous = (i - count) * bits;
+                    let shift = 8 - bits - offset % 8;
+                    let previous_shift = 8 - bits - previous % 8;
+                    let value = ((row[offset / 8] >> shift) & mask)
+                        .wrapping_add((row[previous / 8] >> previous_shift) & mask)
+                        & mask;
+                    row[offset / 8] = (row[offset / 8] & !(mask << shift)) | (value << shift);
+                }
+            }
+        } else {
+            for row in bytes.chunks_exact_mut(stride) {
+                for i in (count * sample..stride).step_by(sample) {
+                    if bits == 8 {
+                        row[i] = row[i].wrapping_add(row[i - count]);
+                    } else {
+                        let previous = i - count * 2;
+                        let value = u16::from_be_bytes([row[i], row[i + 1]])
+                            .wrapping_add(u16::from_be_bytes([row[previous], row[previous + 1]]));
+                        row[i..i + 2].copy_from_slice(&value.to_be_bytes());
+                    }
                 }
             }
         }
@@ -408,5 +424,80 @@ mod tests {
         assert!(read(&doc, &s, &Options::default()).is_none());
         s.set_content(lossless::deflate(&encoded[..13]).unwrap());
         assert!(read(&doc, &s, &Options::default()).is_none());
+    }
+}
+
+#[cfg(test)]
+mod packed_tiff_tests {
+    use super::*;
+    use lopdf::dictionary;
+    #[test]
+    fn packed_tiff_undoes_each_component_and_preserves_row_padding() {
+        for bits in [1usize, 2, 4] {
+            let (width, height, count) = (13, 3, 3);
+            let stride = (width * count * bits).div_ceil(8);
+            let mask = (1u8 << bits) - 1;
+            let mut raw = vec![0x5a; stride * height];
+            for y in 0..height {
+                for i in 0..width * count {
+                    let offset = i * bits;
+                    let shift = 8 - bits - offset % 8;
+                    let value = ((i * 7 + y * 3) % (1 << bits)) as u8;
+                    raw[y * stride + offset / 8] =
+                        (raw[y * stride + offset / 8] & !(mask << shift)) | (value << shift);
+                }
+            }
+            let mut residual = raw.clone();
+            for y in 0..height {
+                for i in count..width * count {
+                    let offset = i * bits;
+                    let previous = (i - count) * bits;
+                    let shift = 8 - bits - offset % 8;
+                    let pshift = 8 - bits - previous % 8;
+                    let value = ((raw[y * stride + offset / 8] >> shift) & mask)
+                        .wrapping_sub((raw[y * stride + previous / 8] >> pshift) & mask)
+                        & mask;
+                    residual[y * stride + offset / 8] =
+                        (residual[y * stride + offset / 8] & !(mask << shift)) | (value << shift);
+                }
+            }
+            let stream = Stream::new(
+                dictionary! {"Subtype"=>"Image","Width"=>width as i64,"Height"=>height as i64,"ColorSpace"=>"DeviceRGB","BitsPerComponent"=>bits as i64,"Filter"=>"FlateDecode","DecodeParms"=>dictionary! {"Predictor"=>2,"Columns"=>width as i64,"Colors"=>count as i64,"BitsPerComponent"=>bits as i64}},
+                lossless::deflate(&residual).unwrap(),
+            );
+            let decoded = read(&Document::new(), &stream, &Options::default()).unwrap();
+            assert_eq!(decoded.bytes, raw);
+            for early in [0, 1] {
+                let mut lzw = if early == 1 {
+                    weezl::encode::Encoder::with_tiff_size_switch(weezl::BitOrder::Msb, 8)
+                } else {
+                    weezl::encode::Encoder::new(weezl::BitOrder::Msb, 8)
+                };
+                let mut source = stream.clone();
+                source.dict.set("Filter", "LZWDecode");
+                source
+                    .dict
+                    .get_mut(b"DecodeParms")
+                    .unwrap()
+                    .as_dict_mut()
+                    .unwrap()
+                    .set("EarlyChange", early);
+                source.set_content(lzw.encode(&residual).unwrap());
+                let canonical = crate::image_input::normalize(
+                    &Document::new(),
+                    &source,
+                    1024,
+                    &AtomicBool::new(false),
+                )
+                .unwrap()
+                .unwrap();
+                assert_eq!(
+                    read(&Document::new(), &canonical, &Options::default())
+                        .unwrap()
+                        .bytes,
+                    raw
+                );
+            }
+        }
     }
 }

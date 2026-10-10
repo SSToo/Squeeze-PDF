@@ -119,7 +119,7 @@ pub(crate) fn flat_callers(
         check_cancel(cancel)?;
         let stream = doc.get_object(id)?.as_stream()?;
         let resources = resources(doc, &stream.dict);
-        if let Ok(bytes) = stream.get_plain_content_with_limit(limits.max_stream_bytes) {
+        if let Ok(bytes) = crate::stream_filters::content(doc, stream, limits.max_stream_bytes) {
             calls(
                 doc,
                 &bytes,

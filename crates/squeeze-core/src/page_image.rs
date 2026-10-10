@@ -3,6 +3,7 @@ use lopdf::{Stream, dictionary};
 
 /// Exactly-gray RGB may use DeviceGray. All other colors remain RGB, including
 /// a one-level channel difference; palette compression never approximates.
+#[cfg(test)]
 pub(crate) fn encode(
     rgb: Vec<u8>,
     width: u32,
@@ -10,7 +11,33 @@ pub(crate) fn encode(
     preset: Preset,
     quality: u8,
     encoder: &mut crate::jpeg::Encoder,
-) -> Result<(Stream, &'static str, String, Vec<crate::EncodingCandidate>)> {
+) -> Result<EncodedPage> {
+    let mut budget = crate::image_encoding::RgbBudget::new(&crate::Limits::default());
+    Ok(encode_variants(
+        rgb,
+        width,
+        height,
+        preset,
+        quality,
+        encoder,
+        &mut budget,
+        &std::sync::atomic::AtomicBool::new(false),
+    )?
+    .0)
+}
+pub(crate) type EncodedPage = (Stream, &'static str, String, Vec<crate::EncodingCandidate>);
+pub(crate) type PageReplacement = (lopdf::ObjectId, Stream, crate::ImageResult);
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn encode_variants(
+    rgb: Vec<u8>,
+    width: u32,
+    height: u32,
+    preset: Preset,
+    quality: u8,
+    encoder: &mut crate::jpeg::Encoder,
+    budget: &mut crate::image_encoding::RgbBudget,
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<(EncodedPage, Option<EncodedPage>)> {
     encoder.cached = false;
     let gray = rgb.chunks_exact(3).all(|p| p[0] == p[1] && p[1] == p[2]);
     let pixels = if gray {
@@ -45,19 +72,30 @@ pub(crate) fn encode(
         true,
         preset == Preset::Lossless,
     )?;
-    let label = if candidates.encoding == "mozjpeg" {
-        "MozJPEG"
-    } else if candidates.encoding == "ccitt-g4" {
-        "无损 CCITT G4"
-    } else {
-        "无损 Flate"
-    };
-    Ok((
-        candidates.best,
-        label,
-        candidates.encoding,
-        candidates.entries,
-    ))
+    let mut enhanced = candidates.clone();
+    if preset != Preset::Lossless {
+        crate::image_encoding::add_rgb_extra(
+            &mut enhanced,
+            &base,
+            &pixels,
+            width,
+            channels,
+            budget,
+            cancel,
+        )?;
+    }
+    fn finish(c: Candidates) -> EncodedPage {
+        let label = if c.encoding == "mozjpeg" {
+            "MozJPEG"
+        } else if c.encoding == "ccitt-g4" {
+            "无损 CCITT G4"
+        } else {
+            "无损 Flate"
+        };
+        (c.best, label, c.encoding, c.entries)
+    }
+    let alternate = (enhanced.best != candidates.best).then(|| finish(enhanced));
+    Ok((finish(candidates), alternate))
 }
 
 #[cfg(test)]
