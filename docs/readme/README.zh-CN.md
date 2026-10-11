@@ -1,0 +1,140 @@
+# Squeeze PDF
+
+[English](../../README.md) · **简体中文** · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Português](README.pt.md)
+
+面向 Windows 和 macOS 的开源离线 PDF 压缩 MVP。Tauri 2 + React 界面，Rust 实现压缩策略、图片处理、页面重建与文件保护；PDF 读写使用 lopdf，桌面整页渲染使用本地 PDF.js，CLI 默认渲染使用 hayro，图片解码使用 image，JPEG 编码通过 Rust 封装调用静态链接的 MozJPEG。运行时无需 qpdf、Ghostscript 或 Python。
+
+安装包可从 [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) 下载：Windows x64、Mac Apple 芯片和 Mac Intel。推送与软件版本一致的 `v` 标签后，三平台构建成功会自动上传安装包和校验文件，详见 [发布指南](../../docs/RELEASING.md)（英文）。
+
+从 0.1.25 起，正式版启动约 5 秒后自动检查 GitHub 上的稳定版更新，长时间运行时每 24 小时检查一次；顶栏更新图标可手动检查。发现新版本后由你选择下载安装并重启，当前文件任务完成前禁止安装。离线检查失败不会打断压缩。联网仅用于版本检查与更新下载，不上传 PDF。0.1.24 及更早版本需先手动安装一次支持更新的新版本。
+
+## 开源许可
+
+本项目自有代码采用 [Apache-2.0](../../LICENSE)，版权署名见 [NOTICE](../../NOTICE)。允许使用、修改、再分发和商业使用，包括基于本项目开发闭源产品；需遵守保留许可 / 署名及标示修改等要求。专利授权范围与条件以 [Apache 官方许可正文](https://www.apache.org/licenses/LICENSE-2.0) 为准。
+
+第三方库、字体及其他资产继续适用原许可证，详见文末的第三方依赖说明。分发包在 `third-party/PROJECT-LICENSE.txt` 和 `PROJECT-NOTICE.txt` 中提供项目许可和署名，并保留第三方许可及所需源码。参与开发见 [CONTRIBUTING.md](../../CONTRIBUTING.md)，授权变更与验证记录见 [开源准备记录](../../docs/OPEN-SOURCE.md)。
+
+## 两种输出模式
+
+| 模式         | 输出内容                                                   | 适用情况                                           |
+| ------------ | ---------------------------------------------------------- | -------------------------------------------------- |
+| 保留原始内容 | 原有文字、字体和矢量类型保留，优化路径、结构及受支持的图片 | 合同、报告、图纸、需要文字复制或放大查看的文档     |
+| 整页转图片   | 每页渲染为一张独立图片，再组成 PDF                         | 需要统一图片页面、愿意放弃文字选择和矢量内容的文档 |
+
+输出模式与画质档位独立：
+
+| 档位        | 保留原始内容                                      | 整页转图片                         |
+| ----------- | ------------------------------------------------- | ---------------------------------- |
+| 保真 / 清晰 | 保留原图片分辨率，JPEG 95，路径精度与重复轮廓优化 | 300 DPI，页面像素用 Flate 无损编码 |
+| 均衡        | 路径精度与重复轮廓优化，JPEG 85，最高 200 DPI     | 宽 1400 px，JPEG 质量 72           |
+| 更小        | 路径精度与重复轮廓优化，JPEG 50，最高 100 DPI     | 宽 1000 px，JPEG 质量 60           |
+
+“清晰”只指栅格图片像素无损编码，文字与矢量已经栅格化。图片模式不保留可选择文字、矢量路径、链接和书签。桌面模式将可渲染的可见表单与批注合并到图片，隐藏字段不会显示，批注弹窗文字不保留；嵌入附件保留原文件数据。
+
+保留原始内容模式只在候选 PDF 更小且校验通过时导出。 可逆流编码、短内容流合并，以及新增前置图片规范化 / 精确 RGB 方案均与现有路径的完整文件比较，变大时回退；损坏 / 未知编码保留，标签、表单外观与内容流身份统一保护。本轮增加大图分行编码、精确资源共享、CMYK / YCCK 系数优化、自动 CID 字体子集和矢量简化；均衡 / 更小另尝试成对透明图优化。桌面加入有质量门槛的超采样候选与分块传输。实现边界及已完成 / 待完成验收见 [验证记录](../../docs/VALIDATION.md)。图片模式会导出用户选择的页面格式，即使体积变大，并明确显示增加量。原件只读，已有输出不覆盖；处理中原件发生变化会阻止提交。
+
+桌面保留模式的三个档位均会精简独立页面流与可证明调用尺度的嵌套 Form 中的路径小数，按所有已知变换限制每轴坐标误差至约 0.0005 点。Form 分析累计 Matrix、cm 和 UserUnit；内容数组只用于连续状态分析，字形、图案、软遮罩、外观、循环及未知调用环境保持保守。文字定位和颜色参数不参与舍入，极细边缘仍可能变化。保真保留图片原像素尺寸，以 JPEG 95 和完整色度采样重编码受支持图片；仅采用更小的图片候选，图片像素可能变化，保真不表示整个 PDF 严格无损。同时将平移后相同的闭合、纯色填充轮廓复用为矢量 Form，精确平移坐标，不转换成图片。复用覆盖独立页面流及带自身资源的嵌套 Form，保留原 Form 的 Matrix、BBox 和透明组；核对所有已知调用点的继承颜色空间，未知调用环境仅处理明确设置纯色的路径。相交轮廓保持一组以保留字形空洞；图案 / 渐变、裁剪、开放路径和需要保真策略的交互文档不参与复用，只有计算收益为正才提交；后续流建立缓存后，会在预算内重新评估此前未采用的候选。新增共享矢量资源按对象号固定写入顺序，避免随机哈希顺序造成输出体积波动。其他结构优化包括：合并字典及内容相同的数据流，清除无法从文档引用到的对象。JPEG 使用 MozJPEG 的 Trellis、渐进扫描优化、去振铃与优化 Huffman；质量 90 以上采用完整色度采样。桌面图片模式使用本地 PDF.js，以最终尺寸直接渲染为基线，在预算内另尝试 2 倍渲染后缩小的候选；Rust 逐页编码和重建 PDF，比较完整体积及双固定参考的画质后选择，不产生 JPEG 中间文件。CLI 的默认独立渲染仍采用 hayro 和预算内的 2 倍超采样。受支持的原图与整页图片比较原编码（保留模式）、JPEG、无损 Flate 五种行预测及固定 / 自适应策略、精确 Indexed 调色板、真实黑白 1 位打包与 CCITT G4 无损候选；成本包含字典、预测参数及调色板。自动灰度仅合并本来就完全相同的 RGB 通道，不对灰色边缘二值化。透明遮罩默认作 8 位无损 Flate 重编码，保持透明度样本、尺寸及颜色空间；均衡 / 更小另对符合条件的主图与软遮罩尝试成对降采样，保真保持尺寸。原有常规 RGB / Gray JPEG 另尝试系数域 Huffman 与顺序 / 渐进扫描优化，量化表、系数、采样和标记保持；携带 ICC 的 JPEG 可走此路径，继续禁止像素重编码。每份文件可缓存最多 32 MB / 256 份相同像素的 JPEG 编码，完整区分尺寸、通道与质量；两种模式共享策略，输出字节不变。超过 256 色的相关 RGB 在分散行探测后，可于预算内比较额外精确 Flate 行预测；噪声 / 照片类负例跳过新增工作，JPEG 解码像素不参与这条精确候选。整页模式从同一份已渲染像素比较完整编码方案。纯色字节流避免重复预测尝试。小文件沿用对象流 100 / 等级 6，优化后至少 1000 个对象的文档使用分组 1000 / 等级 9；写入通过缓冲器完成，提交前检查刷新与往返解析。
+
+## 桌面功能
+
+- 拖入或选择多个 PDF，去重后串行处理。
+- 输出模式与三档画质选择，实时阶段与文件完成数。
+- 前后大小、节省或增加比例、处理说明；失败原因直接显示在文件行中。
+- 原件与结果双栏预览，页码切换与缩放；预览资源全部本地打包。
+- 输出目录选择、同名自动编号、取消、重试、打开结果和所在目录。
+- 记住模式、档位、目录和主题；文件队列仅保存在本次会话。
+- 明暗切换右侧的语言图标可弹出菜单，支持 English、中文、Français、Español、한국어、日本語、Deutsch、Português。首次跟随受支持的系统语言，否则使用英文；后续记住选择。
+- 使用透明 Logo 和红色点缀；深色主题使用炭灰背景，插画及选中状态一起适配。
+- 界面、任务阶段、错误、处理说明及预览控件随语言立即更新，切换不影响正在运行的任务。文件名、路径和底层未知技术错误保留原值。中文目前为简体。
+
+## 开发运行
+
+MozJPEG 由构建脚本编译进 worker，发布包无需外部 DLL 或工具。当前关闭可选汇编 SIMD，因此构建不依赖 NASM 或 CMake；需要平台 C 编译器。
+
+需要 Node.js 22.13+、Rust 1.92，以及对应平台的 Tauri 编译环境。仓库的 `rust-toolchain.toml` 固定 Rust 1.92.0。macOS 需要 Xcode Command Line Tools；Windows 使用 MSVC、C++ Build Tools 和 WebView2。
+
+```sh
+npm ci
+npm run tauri -- dev
+```
+
+`npm run preview` 只启动前端服务；桌面文件功能通过 `tauri dev` 使用。开发与发布脚本会准备当前架构的 worker、PDF.js 本地资源和第三方许可通知。
+
+## 编译与检查
+
+```sh
+cargo test --workspace --locked
+
+node scripts/prepare-worker.mjs
+npm run notices
+npm run test:licenses
+npm run check
+npm run test:render
+npm run test:i18n
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+
+# macOS 应用；额外添加 ,dmg 可调用 Tauri 的 DMG 打包器
+npm run tauri -- build --bundles app
+
+# macOS 应用及简洁 DMG，不依赖 Finder 自动排版
+npm run package:mac
+
+# Windows EXE 安装包，在 Windows 上运行
+npm run tauri -- build --bundles nsis
+```
+
+应用包位于 `target/release/bundle/`。默认生成当前机器架构的包。传入 `--target` 时，同时设置 `CARGO_BUILD_TARGET`，确保 worker 架构一致。Windows 安装包配置为包含 WebView2 离线安装程序。
+
+已配置 Windows x64、macOS arm64 与 Intel 的原生 CI 构建；本地验证环境为 macOS arm64。Windows 和 Intel 尚未执行安装回归。macOS 默认使用 ad-hoc 签名供本地试用；公开分发的 Windows 签名、macOS Developer ID 签名和公证尚未配置。正式发布时通过 `APPLE_SIGNING_IDENTITY` 设置发布身份，参考 [Tauri 官方签名说明](https://v2.tauri.app/distribute/sign/macos/)。
+
+## CLI 与引擎
+
+```sh
+cargo run -p squeeze-cli -- inspect "原件.pdf"
+cargo run -p squeeze-cli -- compress "原件.pdf" -o "保真结果.pdf" --output-mode preserve --preset fidelity --compact-paths --reuse-paths --json
+cargo run -p squeeze-cli -- compress "原件.pdf" -o "结果.pdf" --output-mode preserve --preset balanced --json
+cargo run -p squeeze-cli -- compress "原件.pdf" -o "图片版.pdf" --output-mode raster --preset small --json
+```
+
+`--output-mode` 支持 `preserve`（默认）与 `raster`；`--preset` 支持 `lossless`、`fidelity`、`balanced`、`small`，可加 `--quality 85 --dpi 200`。保留模式可加 `--compact-paths` 开启路径精度优化，`--reuse-paths` 开启重复矢量轮廓复用；CLI 默认关闭这两项。`lossless` 不进行有损图片重编码和降采样，允许精确预测／调色板／G4、JPEG 系数域优化及等价资源共享，并忽略这两项矢量优化。`fidelity` 对应桌面保真：图片不降采样，默认 JPEG 95；可与两项矢量优化一起使用，不接受目标 DPI。桌面三个保留档位都启用两项矢量优化；图片模式的清晰档仍采用像素无损编码。Ctrl+C 请求取消；桌面端使用独立 worker，取消会终止渲染或 worker。页面渲染和 worker 编码分别限制为 120 秒。
+
+核心入口为 `squeeze_core::inspect_file`、`squeeze_core::audit_file` 与 `squeeze_core::compress`。`squeeze audit input.pdf` 输出只读体积分类；压缩 JSON 增加 `size_before` / `size_after`、逐阶段流字节与耗时、每张图片的 `encoding` / `candidates` / `elapsed_ms` / `jpeg_cached` 及写入配置。`output_images` 描述实际输出的图片对象与字节，`image_optimization` 记录两个完整方案的选择；`image_preparation` / `rgb_flate` 记录规范化、预算及固定 RGB 样本证明。流分类只计一次，文件语法与字典开销不等于可删冗余；图片候选成本包含相同的间接对象边界，不是实际整份 PDF 大小。`inspect` 预检，`usage` 计算图片绘制尺寸，`images` 优化受支持图片，`jpeg` 编码 JPEG，`jpeg_lossless` 在系数域优化已有 JPEG，`image_encoding` 比较精确图片编码，`audit` 记录体积与阶段，`resources` 按所有者清理已证明未使用的 XObject，并比较样本及渲染语义合并同像素异编码图片；标记图片保留独立身份，颜色 / Decode / 遮罩等字典须相同。`structure` 精简内容数字并合并重复资源，`lossless` 重压缩流，`page_image` 选择整页图像编码，`raster` 提供 CLI 默认渲染，`raster_input` 校验桌面渲染计划与逐页像素并重建图片页面，`form_precision` 证明所有 Form 调用的物理尺度上界，`paths` 优化矢量路径精度，`reusable_paths` 精确复用闭合矢量轮廓，`validate` 校验写入对象及引用。
+
+生成两种模式、三档画质的十二组报告：
+
+```sh
+node scripts/benchmark.mjs
+node scripts/benchmark-round1.mjs tmp/round1-benchmark /path/to/baseline-worker
+cargo run -p squeeze-core --example make_sample -- tmp/samples --large
+```
+
+`make_sample --large` 额外生成约 138 MB 的 24 页文件，供取消及大文件流程测试。生成样本的高压缩率不能代表真实扫描件或商业 PDF 的表现。`benchmark-round1.mjs` 对相同输入比较新旧 worker、两种模式和三档；`scripts/verify-codec-benchmark.py` 使用开发期 Poppler / pypdf / Pillow / NumPy 独立检查。通用验证范围与限制见 [验证记录](../../docs/VALIDATION.md)。
+
+`jpeg_profiles` 示例及 `benchmark-jpeg-profiles.py` 保存相同像素下的编码与局部指标；`verify-vector-pages.mjs` 使用 PDF.js 检查指定页面。Jpegli、JPEG2000 和 Brotli 输出仅用于开发实验，没有成为产品编码选项或新增运行依赖。
+
+## 支持范围与限制
+
+- 不设固定的 PDF 文件大小上限，导入、压缩与预览支持超过 256 MiB 的文件；实际可处理大小取决于可用内存。单流解压最多 64 MiB，单张图片最多 2400 万像素；队列串行执行。
+- 原始内容模式的常规图片通路支持 8 位 RGB / Gray、默认范围的 1 / 3 通道 ICCBased、Flate 预测器与 JPEG，以及受限 1 位 Gray / G4、Indexed 输入；常规灰度软遮罩保持无损。原始分量通路另覆盖受限 raw / 单层 Flate 的 1 / 2 / 4 / 8 / 16 位 DeviceGray / RGB / CMYK、CalGray / CalRGB、Lab、ICCBased、Indexed、Separation / DeviceN，不转换 RGB，保持原宽高、颜色空间、位深、ICC Range、非默认 Decode 和遮罩。每张新增分量工作最多 4 MiB、每份新增样本预算 16 MiB，另有软时间预算。CMYK JPEG、JPEG2000、JBIG2、G3 / 特殊 CCITT、未知或多层过滤器仍保留原图片编码；单名 Flate 的精确重压缩另受 Zopfli 预算与交互保护约束。只归一化确实默认的设备颜色 Decode；含 DefaultGray / RGB / CMYK 的文档继续保留显式映射。
+- 根据实际绘制尺寸处理继承资源、共享图片、Form Matrix 和 UserUnit；按每张图片记录未知调用；分析不完整或超过预算时只禁用相关图片的降采样，继续安全重编码。保真始终保持原图片尺寸。
+- 原始内容模式保留表单、批注及附件，并保护外观 / 字段默认资源及其共享图片；不相关的普通页面图片按所选档位优化。图案 / Type3 等未知图片调用保持原尺寸。附件不再关闭普通页面优化；表单与外观批注的两项有损矢量优化仍采用整份保守保护。空的批注数组不算交互内容。加密、数字签名、PDF/A、XFA、组合包均跳过。
+- 桌面图片模式支持普通超链接、空表单容器、可渲染的表单与批注，并保留嵌入附件。核对批注解析及绘制结果；缺少可绘制外观的便签 / 附件图标或损坏批注会按页报错，避免导出缺内容的页面。CLI 的 hayro 路径仍拒绝需要绘制表单或批注的文件；另拒绝含 BrotliDecode 数据流的文件，避免静默遗漏，需改用桌面 PDF.js 图片模式。
+- 图片模式处理旋转、可见裁剪区域和物理页面尺寸；缺少已嵌入的非标准字体时拒绝转换，避免静默丢字。复杂页面仍需前后人工检查。
+- hayro 仍处于快速迭代阶段；采用固定版本不代表具备完整商业 PDF 兼容性。图片模式的渲染与颜色表现需要更多真实样本回归。
+- 底层解析器可能容错重建交叉引用；尚未实现对所有畸形 PDF 的严格拒绝。
+- 已限制每流、像素和分析操作数，但尚未实现覆盖所有分配的总内存预算；导入预检在后台线程，压缩在独立进程。
+- 正常取消会清理已终止 worker 的临时目录。系统强制杀死应用或断电后的启动恢复清理尚未实现。
+- 不包含 OCR、PDF 编辑、目标大小保证或商业激活系统。
+
+技术文档以英文维护。详细实测见 [docs/VALIDATION.md](../../docs/VALIDATION.md)，实施及后续计划见 [PLAN.md](../../PLAN.md)。
+
+## 第三方依赖
+
+锁定文件固定构建依赖。`npm run notices` 收集依赖清单、原许可文本、hayro 上游 NOTICE、PDF.js 字体及 WASM 通知，包括 QuickJS 引擎和 Mozilla 沙箱的 MIT 声明；同时附带未修改 MPL 依赖完整源码、Liberation 1.07.4 上游源码及实际随包字体的可编辑源码和还原脚本。构建时全部放入应用资源的 `third-party/`。获取及重建方式见随包 [SOURCE-CODE.md](../../licenses/SOURCE-CODE.md)，版本和哈希记录见 [许可补齐记录](../../docs/LICENSING-0.1.22.md)。生成清单保守包含构建依赖。
+
+`npm run test:licenses` 校验许可正文、字体 / WASM 及源码哈希、MPL 源码完整性；CI 的 Windows / macOS 构建均执行。PDF.js 升级或相关资产改变时需重新核对许可及匹配源码，检查通过后才能构建。重新生成字体源码的开发工具为 `scripts/make-font-sources.py`，需 FontTools 4.66.1，不是应用运行依赖。
+
+自研范围包括压缩策略、PDF 图片分析、降采样、页面重建、文件保护与验证；标准格式解析及解码使用 Rust 基础库，桌面整页渲染使用 PDF.js，CLI 默认渲染使用 hayro，JPEG 编码使用静态链接的 MozJPEG C 库，精确黑白图的 G4 编码使用 MIT 许可的纯 Rust `fax 0.3.0`。受限 CID TrueType 字体子集使用 MIT / Apache-2.0 双许可的 `subsetter 0.2.6`，已接入保留模式；软件不分发开发测试字体。参考 [lopdf](https://docs.rs/lopdf/0.45.0/lopdf/)、[hayro](https://github.com/LaurenzV/hayro)、[PDF.js](https://mozilla.github.io/pdf.js/getting_started/) 的官方资料。
+
+自有代码从 0.1.23 起按 Apache-2.0 授权。`licenses/` 中的第三方许可和字体源码保留原有授权，不因项目开源而统一改为 Apache-2.0。

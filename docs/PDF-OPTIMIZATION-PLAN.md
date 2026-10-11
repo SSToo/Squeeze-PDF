@@ -1,225 +1,225 @@
-# PDF 压缩研究与后续优化计划
+# PDF compression research and optimization plan
 
-研究日期：2026-10-06。基线：Squeeze PDF 0.1.10。本文保留原始研究计划；已实施能力和验证限制见 [验证记录](VALIDATION.md)。后续实现可能已超过下文所述基线，以当前源码为准。
+Research date: 2026-10-06. Baseline: Squeeze PDF 0.1.10. This preserves the original plan; see the [validation record](VALIDATION.md) for implemented scope and limits. Later implementation may exceed this baseline; current source governs.
 
-## 目标与约束
+## Goals and constraints
 
-目标是改善同等可接受画质下的文件体积，同时扩大能优化的文档范围。继续支持 Windows / macOS、完全本地处理及闭源商业分发。
+Improve file size at acceptable comparable quality and extend the range of optimizable documents. At the time, requirements included Windows/macOS, local processing and closed-source commercial distribution.
 
-授权变更：从 0.1.23 起，自有代码采用 Apache-2.0 开源，仍允许商业使用和闭源衍生产品；第三方材料保留各自许可，详见 [开源准备记录](OPEN-SOURCE.md)。上文保留制定本计划时的背景。
+Licensing update: since 0.1.23, original code is open source under Apache-2.0, still allowing commercial use and closed-source derivatives. Third-party materials retain their licenses; see the [open-source record](OPEN-SOURCE.md). The preceding paragraph preserves the original context.
 
-- 保留原始内容：保留文字、字体和矢量类型；保真保持图片原像素尺寸，不通过降分辨率取得收益。均衡 / 更小可以在各自画质约束下处理图片尺寸。
-- 整页转图片：每页严格一张独立图片。图片编码可以变化，不能悄悄变成文字 / 照片 / 遮罩组成的多层页面。
-- 默认保留原文件、已有输出、书签、链接、附件和文档的可访问性信息；图片模式已明确放弃的功能沿用现有约定。
-- 不用额外降低 DPI、统一降低 JPEG 质量或删除用户内容来冒充算法改进。
-- 新策略采用更小且验证通过的候选，原策略作为回退。尚未测试的新方案不承诺压缩百分比。
+- Preserve mode retains text, fonts and vector types. Fidelity retains original image dimensions; it must not gain compression through downsampling. Balanced/Smaller may resize within their quality constraints.
+- Image mode has exactly one independent image per page. Encoding may vary, but the output must not silently become multilayer text/photo/mask composition.
+- Preserve originals, existing outputs, bookmarks, links, attachments and accessibility information by default, except features explicitly relinquished by image mode.
+- Lower DPI, globally lower JPEG quality and deleted user content do not count as algorithm improvements.
+- Adopt only smaller validated candidates, retaining the old strategy as fallback. Untested strategies have no promised compression percentage.
 
-## 当前引擎已经具备的能力
+## Existing 0.1.10 capabilities
 
-本轮读取 `lib.rs`、`images.rs`、`page_image.rs`、`jpeg.rs`、`usage.rs`、`structure.rs`、`lossless.rs`、`paths.rs`、`reusable_paths.rs`、`form_usage.rs` 和既有验证记录。
+Reviewed `lib.rs`, `images.rs`, `page_image.rs`, `jpeg.rs`, `usage.rs`, `structure.rs`, `lossless.rs`, `paths.rs`, `reusable_paths.rs`, `form_usage.rs` and validation records.
 
-| 项目         | 0.1.10 当前实现                                                                       | 仍有空间                                                                         |
-| ------------ | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| JPEG         | 静态 MozJPEG，Trellis、去振铃、渐进扫描优化、优化 Huffman；质量达到 90 时完整色度采样 | 现有 JPEG 没有 DCT 系数域无损优化；没有按内容选择量化 / 色度策略                 |
-| 保留模式图片 | 8 位 RGB / Gray 及有限 ICCBased，JPEG 候选更小才采用；保真不降采样                    | 未与无损 Flate、Indexed 调色板等候选竞争；1 位、CMYK 等大量类型保留原编码        |
-| 图片模式     | PDF.js 直接渲染最终尺寸；完全灰度 / 少色页面比较 JPEG 与 Flate                        | 没有 Indexed 与 1 位打包；PNG 行预测只有 None / Sub / Up；少色判定很粗           |
-| 矢量         | 独立页面流坐标精简；闭合纯色轮廓复用覆盖页面和嵌套 Form                               | Form 路径精度优化、跨内容数组分析、更大绘制块复用尚未覆盖                        |
-| 资源合并     | 编码流字节及字典相同的数据流合并，清除不可达对象                                      | 同像素异编码图像、等价但引用不同的资源、被资源字典挂住却从未绘制的对象仍可能保留 |
-| 字体         | 保留字体资源及 Type3 绘制；相同流可去重                                               | 尚无按实际使用字形重新子集化或字体映射分析                                       |
-| PDF 写入     | 已生成对象流与交叉引用流，每对象流上限 100，写入压缩等级 6                            | 可以比较等级、分组大小与顺序；不能把对象流功能作为尚未实现的新功能               |
-| Flate        | 部分非图片流以现有 flate2 的最佳等级重压缩                                            | 跳过图片和带 DecodeParms / 多重 Filter 的流；没有按收益选择更慢的压缩器          |
-| 保守保护     | 含表单、外观批注或附件时，保留模式整份跳过图片及两项矢量优化                          | 可以把保护粒度缩小到资源 / 绘制流；需要证明全部调用环境安全                      |
+| Area            | 0.1.10 implementation                                                                                | Remaining opportunity                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| JPEG            | Static MozJPEG, Trellis, deringing, progressive scans, optimized Huffman; full chroma at quality 90+ | No existing-JPEG lossless DCT optimization or content-based quantization/chroma selection       |
+| Preserve images | 8-bit RGB/Gray, restricted ICCBased; smaller JPEG candidates only; no Fidelity downsampling          | No competition with exact Flate/Indexed; many 1-bit/CMYK types keep original encoding           |
+| Image mode      | PDF.js at final size; Gray/few-color pages compare JPEG/Flate                                        | No Indexed/1-bit packing; only None/Sub/Up predictors; coarse few-color selection               |
+| Vectors         | Independent page-coordinate compaction; closed solid-outline reuse across pages/nested Forms         | Form precision, cross-Contents analysis and larger repeated drawing blocks                      |
+| Resources       | Deduplicate streams with matching bytes/dictionaries; prune unreachable objects                      | Equivalent pixels/different encodings, equivalent reference graphs and unused Resources entries |
+| Fonts           | Preserve fonts/Type3 drawing; identical streams can deduplicate                                      | Actual-glyph subsetting and mapping analysis                                                    |
+| PDF writer      | Object/xref streams; maximum 100 objects per stream; level 6                                         | Compare levels, group sizes/order. Object-stream support already exists.                        |
+| Flate           | Recompress some non-image streams with flate2's best level                                           | Images, DecodeParms and filter chains skipped; no benefit-aware slow compressor                 |
+| Protection      | Forms, appearance annotations or attachments disable image/two vector optimizations document-wide    | Refine protection to resources/drawing streams after proving every use safe                     |
 
-## 两份当前结果的剩余体积
+## Size remaining in two existing results
 
-只读分析 0.1.10 保真结果，未生成新的 PDF。单位沿用软件的 MiB 计算，界面标记为 MB。
+Read-only analysis of 0.1.10 Fidelity results; no new PDFs. The app computes MiB but labels it MB.
 
-| 文件       | 当前总大小 |   图片与遮罩编码流 | 页面 / Form / Type3 绘制流 | 其他数据与文件开销 |
-| ---------- | ---------: | -----------------: | -------------------------: | -----------------: |
-| 测试文档 A |    6.67 MB |  4.83 MB，约 72.3% |                    1.40 MB |            0.45 MB |
-| 测试文档 B |   48.73 MB | 30.35 MB，约 62.3% |                   13.27 MB |            5.11 MB |
+| File       |    Total | Encoded images/masks | Page/Form/Type3 drawing | Other data/overhead |
+| ---------- | -------: | -------------------: | ----------------------: | ------------------: |
+| Document A |  6.67 MB |      4.83 MB, ~72.3% |                 1.40 MB |             0.45 MB |
+| Document B | 48.73 MB |     30.35 MB, ~62.3% |                13.27 MB |             5.11 MB |
 
-各流按对象身份只统计一次。最后一列包括压缩对象 / 交叉引用流、其他流、字典、引用及文件语法，不是可以全部删除的冗余；四舍五入后分项可能与总计略有差异。两份结果未发现 FontFile / FontFile2 / FontFile3 嵌入字体程序流，存在 Type3 字形流，不能把字体子集化当作这两份文档的主要解法。
+Streams are counted once by identity. Other overhead includes object/xref streams, other streams, dictionaries, references and syntax; it is not all removable redundancy. Rounded sums may differ. Neither result contains FontFile/FontFile2/FontFile3 programs; Type3 glyph streams exist, so font subsetting is not their main solution.
 
-测试文档 B 仍有 23,803 个 Form，测试文档 A 为 1,277 个。由此推断，下一轮对这两份文件应优先处理图片编码，并对测试文档 B 同时检查 Form 内容和小对象开销。此判断来自当前文件分布，不是对所有 PDF 的结论。统计保存在忽略的 `tmp/pdf-research-2026-10-06/size-audit.json`。
+Document B still has 23,803 Forms and A 1,277. This suggests prioritizing image encoding for both and Form/small-object overhead for B, based on these distributions rather than all PDFs. Statistics: ignored `tmp/pdf-research-2026-10-06/size-audit.json`.
 
-## 候选优化清单
+## Candidate work
 
-### A. 先建立可解释的体积与画质基准
+### A. Explainable size and quality baselines
 
-优先级：P0。成本：小到中。直接压缩收益：无，但决定后续投入是否有效。
+P0; small/medium cost; no direct savings, but necessary to judge later work.
 
-1. 记录原件、各档结果中图片、遮罩、绘制流、字体、附件、元数据、对象容器和文件语法的占比。
-2. 为每项优化记录候选前后字节、耗时、采用 / 跳过原因、图片尺寸与编码，避免报告只显示最终压缩率。
-3. 建立固定的真实文档与自有样本集：转曲报告、照片、截图图表、黑白扫描、灰度扫描、大字体库、CMYK / ICC、透明遮罩、表单批注附件、内容数组和嵌套 Form。
-4. 编码实验使用同一份输入像素、相同尺寸；记录完整体积与局部小字 / 边缘质量，不比较不同编码器的相同质量数字。
+1. Break down originals/presets into images, masks, drawing, fonts, attachments, metadata, object containers and syntax.
+2. Record candidate before/after bytes, time, adoption/skip reasons, image dimensions and encodings instead of final ratios alone.
+3. Establish fixed real/synthetic coverage: outlined reports, photos, screenshots/charts, monochrome/grayscale scans, large fonts, CMYK/ICC, transparency, forms/annotations/attachments, Contents arrays and nested Forms.
+4. Use identical pixels/dimensions for encoding experiments; compare complete size and local text/edges, not equal quality numbers across encoders.
 
-验收：相同原件及选项可复测，逐阶段数据能解释体积变化；记录均衡 / 更小 / 保真和两种输出模式各自的结果。
+Acceptance: repeatable inputs/options and explainable stage data for every preset in both modes.
 
-### B. 图片按内容选择编码，而不是统一尝试 JPEG
+### B. Content-aware image encoding
 
-优先级：P1，首轮实施。成本：中。适用：两种模式。
+P1, first round; medium cost; both modes.
 
-- 将原编码、MozJPEG、Flate + PNG predictor、精确 Indexed 调色板列为候选；按包含字典和调色板的完整成本选取更小者。
-- 对确实只有黑白两值的图片，尝试 1 位打包；之后再评估 CCITT G4。只有原像素可以精确恢复时才算无损，不对灰色抗锯齿边缘自动二值化。
-- 补齐 Average / Paeth 行预测，比较固定及逐行策略；少色图试 Indexed 与原 RGB 两条路径，调色板候选保持原有颜色样本值。
-- 将这些候选也用于原 PDF 的透明遮罩和受支持图片。无损重编码不等于可以任意改变 Mask、Decode、Matte 或 ICC，相关字典和值仍要匹配。
-- 内容分类仅用于限制尝试成本；无法识别时回退，不把分类器的“照片”判断当作允许损失文字细节的依据。
+- Compare original, MozJPEG, Flate + PNG predictors and exact Indexed, including dictionaries/palettes in cost.
+- Try 1-bit packing for exactly black/white input, then CCITT G4. Lossless requires exact reconstruction; do not threshold gray antialiasing.
+- Add Average/Paeth; compare fixed/per-row strategies. Few-color images try both Indexed and RGB while retaining exact samples.
+- Extend candidates to supported images/masks without altering Mask, Decode, Matte or ICC semantics.
+- Classification schedules work only; unknown content falls back, and “photo” classification never authorizes losing text detail.
 
-依据：Adobe 区分连续色调适合 JPEG / JPEG2000、平坦色块适合 ZIP；W3C 推荐少色图的索引色及完整的五种行过滤。[Adobe 图片设置](https://helpx.adobe.com/africa/acrobat/desktop/create-documents/optimize-pdfs/pdf-optimizer-settings.html)，[W3C PNG 过滤选择](https://www.w3.org/TR/png/#12Filter-selection)。这里借用的是编码原理，PDF 中仍写入 PDF 图像流，不把 PNG 文件整体塞进 FlateDecode。
+Adobe distinguishes continuous-tone JPEG/JPEG2000 from flat-color ZIP; W3C describes indexed color and all five PNG filters. [Adobe image settings](https://helpx.adobe.com/africa/acrobat/desktop/create-documents/optimize-pdfs/pdf-optimizer-settings.html), [W3C filter selection](https://www.w3.org/TR/png/#12Filter-selection). Use their encoding principles in PDF image streams, not whole PNG files inside FlateDecode.
 
-验收：无损候选解码像素逐字节相同；保真 Width / Height 不变；图片模式保持每页一张图。高色数照片能快速跳过无效候选。
+Acceptance: exact decoded pixels for lossless candidates, unchanged Fidelity Width/Height, one image per page and inexpensive rejection of unhelpful photo candidates.
 
-### C. 为已有 JPEG 增加不重新量化的优化路径
+### C. Optimize existing JPEG without requantization
 
-优先级：P1，首轮实施。成本：中。适用：保留模式，及经过严格判定的原图复用路径。
+P1, first round; medium cost; preserve and strictly validated image-reuse paths.
 
-- 通过已使用的 MozJPEG / libjpeg API 读取 DCT 系数，保持量化表、系数、尺寸和采样，比较顺序 / 渐进扫描及 Huffman 重新编码。
-- 优先处理原本已经压缩良好的 JPEG，避免为很小的节省再次解码重编码。
-- 颜色转换标记、ICC 与 PDF ColorSpace / Decode / ColorTransform 的关系保持；首轮限制 RGB / Gray 常规情况。
-- “无损”仅指不再次修改 JPEG 量化数据，不声称恢复拍摄前或此前 JPEG 压缩已丢失的细节。由同一解码器检查候选，另用不同 PDF 阅读器做页面检查。
+- Use existing MozJPEG/libjpeg APIs to read DCT coefficients, preserving quantization, coefficients, dimensions and sampling while comparing sequential/progressive scans and Huffman coding.
+- Prioritize already-compressed JPEGs to avoid another decode/re-encode for tiny gains.
+- Preserve markers, ICC and PDF ColorSpace/Decode/ColorTransform relationships; initially ordinary RGB/Gray only.
+- “Lossless” means no additional JPEG quantization loss, not restoration of already lost detail. Check with the same decoder and independent PDF readers.
 
-依据：[MozJPEG 的 jpegtran 说明](https://github.com/mozilla/mozjpeg/blob/master/usage.txt)明确说明系数域变换及熵编码优化可以避免重新解码后再压缩造成的额外损失。
+[MozJPEG jpegtran](https://github.com/mozilla/mozjpeg/blob/master/usage.txt) describes coefficient-domain transforms/entropy optimization without decode/recompression loss.
 
-验收：量化表与系数、采样和尺寸保持；解码核对与 PDF 渲染通过；只有完整候选更小时采用。
+Acceptance: unchanged quantization, coefficients, sampling and dimensions; decoded/render checks pass; complete candidate is smaller.
 
-### D. 让 JPEG 参数围绕文字与照片分别选择
+### D. JPEG parameters for text versus photos
 
-优先级：P1，先实验再决定默认。成本：中。适用：两种模式。
+P1, experimental before defaults; medium cost; both modes.
 
-- 当前质量 90 以下统一 4:2:0；小号彩字、细彩线与截图应比较 4:4:4 / 4:2:2 / 4:2:0 和不同量化配置。
-- 在固定尺寸下建立有限候选集合，以局部文字边缘、颜色误差及图像指标筛选；保真维持更严格门槛，均衡 / 更小使用各自门槛。
-- 相同编码器也不能把质量 95 当作每张图同样的误差；不靠全页白色区域稀释小字局部失真。
-- 评估 Jpegli 与 MozJPEG 的同画质表现。Jpegli 输出仍可使用常规 JPEG / DCTDecode，先限制常规 8 位颜色，不启用 XYB 等会增加颜色兼容性验证负担的路径。暂不替换默认编码器。
-- Jpegli 的作者研究在高质量照片样本上报告了更好的体积 / 人眼偏好结果，这只能支持进行实验，不能直接推算本软件的 PDF 会缩小 35%。
+- Below quality 90, current sampling is 4:2:0. Compare 4:4:4/4:2:2/4:2:0 and quantization for colored small text, thin lines and screenshots.
+- At fixed dimensions, bound the candidate set and gate local text edges, color error and image metrics. Fidelity uses stricter gates; other presets have their own.
+- Quality 95 does not imply equal error on every image. Whole-page white areas must not dilute local text damage.
+- Compare Jpegli/MozJPEG at matched quality. Jpegli can produce ordinary JPEG/DCTDecode; start with ordinary 8-bit colors, without XYB or other paths requiring extra color validation. Do not replace the default yet.
+- Jpegli's authors report better size/perceptual results for high-quality photos. This warrants experiments, not a claim that this app's PDFs shrink 35%.
 
-依据：[MozJPEG 扩展参数](https://github.com/mozilla/mozjpeg/blob/master/README-mozilla.txt)，[Jpegli 官方实现说明](https://github.com/google/jpegli/blob/main/README.md)，[Jpegli 人眼对比研究](https://arxiv.org/abs/2403.18589)。
+References: [MozJPEG extensions](https://github.com/mozilla/mozjpeg/blob/master/README-mozilla.txt), [Jpegli](https://github.com/google/jpegli/blob/main/README.md), [perceptual study](https://arxiv.org/abs/2403.18589).
 
-验收：同时提供同尺寸同画质下的字节数，以及相近体积下的小字 / 细线对照；未改善的文档使用旧候选。候选次数受时间 / 内存预算限制。
+Acceptance: bytes at equal dimensions/acceptable quality plus text/line comparisons at similar size. Keep previous candidates when unimproved; bound time/memory.
 
-### E. 扩大矢量优化覆盖，减少大量小 Form 的开销
+### E. Broader vectors and small-Form overhead
 
-优先级：P1，测试文档 B 专项先测。成本：中到大。适用：保留模式。
+P1; first experiment on Document B; medium/high cost; preserve.
 
-- 先统计 Form 中仍未优化的绘制内容、重复率、字典 / 引用开销及跳过原因，再扩展算法。
-- 对嵌套 Form 的坐标精简，必须累计全部已知调用点的 Matrix / cm / UserUnit，按最终页面上的误差控制；未知、循环、软遮罩或其他特殊调用保守跳过。现有页面约 0.0005 点的每轴预算不得仅按 Form 局部坐标套用。
-- 内容数组按连续的图形状态分析，不能把每个流当作 q / Q、颜色、裁剪或文本状态独立重置。
-- 对有明确状态边界的重复绘制块进行复用，评估是否优于逐轮廓创建 Form；安全共享相同资源字典，改善大批小对象的存储成本。
-- 不将转曲文字自动“还原”为字体文字，也不扩大到未证明安全的图案、渐变、透明混合或裁剪路径。
+- Measure untouched Form drawing, repetition, dictionary/reference overhead and skips before extending algorithms.
+- Bound nested-Form coordinate error across every known Matrix/cm/UserUnit call. Skip unknown/cyclic/soft-mask/special calls. The existing ~0.0005-point per-axis page budget cannot be applied to local Form coordinates alone.
+- Analyze Contents arrays as continuous state, without resetting q/Q, colors, clipping or text per stream.
+- Reuse repeated blocks with proven state boundaries; compare against per-outline Forms. Share safe identical resource dictionaries and reduce small-object storage overhead.
+- Do not convert outlined text back into fonts or extend to unproven patterns, gradients, blending or clipping.
 
-依据：当前 `paths.rs` 只处理独立页面流，而 `reusable_paths.rs` 已支持受限嵌套 Form。测试文档 B 当前约 13.27 MB 绘制流与大量 Form 提供了明确的调查目标，但不能把这部分体积都当作可删除数据。
+`paths.rs` handles independent page streams; `reusable_paths.rs` already supports restricted nested Forms. B's ~13.27 MB drawing and numerous Forms are investigation targets, not all removable data.
 
-验收：独立展开轮廓与变换核对、空洞 / 填充规则保持；两种渲染器检查细线、渐变、透明组和软遮罩；完整文件收益为正。
+Acceptance: independently expand outlines/transforms, retain holes/fill rules, check fine lines/gradients/groups/masks in two renderers, and achieve complete-file savings.
 
-### F. 图片使用范围和交互保护按对象精细化
+### F. Per-object image usage and interactive protection
 
-优先级：P2。成本：大。适用：保留模式，尺寸优化只适用于均衡 / 更小。
+P2; high cost; preserve, with resizing only in Balanced/Smaller.
 
-- 当前 `Usage.complete` 是全局开关，任何未覆盖的 Type3、图案、遮罩等路径都可能关闭所有图片的降采样。改成每张图片的已知调用、最大绘制尺寸和未知引用集合。
-- 未知环境中被调用的图片继续保持原尺寸；与未知环境无关且调用完全的图片可以正常优化。保真始终不降采样。
-- 把表单 / 批注 / 附件触发的整份保护，改为保护其资源及全部共享调用；附件存在不应自动否决所有普通页面的优化。
-- 进一步支持内联图片，先可靠解析二进制边界及缩写资源，再转为可优化的普通图像对象。不能扫描到一个 EI 字节串就认定图像结束。
+- Replace global `Usage.complete` with per-image known calls, maximum drawn dimensions and unknown references. Unsupported Type3/pattern/mask paths currently can disable all downsampling.
+- Keep dimensions for images called in unknown contexts; optimize unrelated fully analyzed images. Fidelity never downsamples.
+- Protect forms/annotations/attachments and every shared use rather than disabling whole documents. An attachment alone should not veto ordinary page optimization.
+- Parse inline binary boundaries/abbreviations reliably before converting to optimizable objects. Finding an EI byte sequence is insufficient.
 
-依据：当前 `usage.rs` 与 `inspect.rs` 的全局保护；[qpdf 图像优化说明](https://qpdf.readthedocs.io/en/stable/cli.html#pdf-modification)包含内联图片处理，可作为行为参考。
+Evidence: global protection in `usage.rs`/`inspect.rs`; [qpdf image behavior](https://qpdf.readthedocs.io/en/stable/cli.html#pdf-modification) includes inline handling as a reference.
 
-验收：共享图片在所有使用位置均保持正确；表单数据与外观、批注、附件及普通链接完整；未知资源不被错误降采样或改写。
+Acceptance: all shared uses correct; form data/appearances, annotations, attachments and links intact; no incorrect downsampling/rewrites in unknown contexts.
 
-### G. 资源清理与更深入的去重
+### G. Cleanup and deeper deduplication
 
-优先级：P2，部分低风险任务可提前。成本：中到大。适用：主要是保留模式。
+P2, with some low-risk tasks earlier; medium/high cost; mainly preserve.
 
-- 当前不可达对象清理会保留被 Resources 引用但从未被绘制的对象。分析 Do / Tf / gs / sh / cs / scn 等操作和页面继承，只移除可证明未使用的资源，再做可达性清理。
-- 对解码后像素相同、编码不同的图片去重，要求尺寸、位深、颜色空间、Decode、遮罩及透明语义一致；不能只按看起来一样或 RGB 像素哈希合并。
-- 对相同资源字典、ICC、Form 引用子图做规范化共享，处理循环与调用环境；保留结构标记 / MCID 等语义，避免合并改变可访问性。
-- 原本已是严格单图页面的文件，评估直接复制 / 重编码图像而跳过重复渲染；需证明页面裁剪、旋转、颜色及全部可见绘制等价，仍输出每页一张图。
+- Analyze Do/Tf/gs/sh/cs/scn and inheritance to remove only provably unused Resources entries, then prune unreachable objects.
+- Share differently encoded but identical decoded images only with matching dimensions, bit depth, color, Decode, mask and transparency semantics. Appearance/RGB hashes alone are insufficient.
+- Normalize/share dictionaries, ICC and Form subgraphs with cycle/context handling, preserving tags/MCID and accessibility.
+- For already strict single-image pages, study direct copying/re-encoding without rendering, proving crop/rotation/color/all visible drawing equivalence and retaining one image per page.
 
-验收：页序 / 页面框 / 字体 / 颜色 / 透明 / 标签和链接不变；不同编码的重复图片实际减少；共享对象稳定导出。
+Acceptance: order, page boxes, fonts, color, transparency, tags and links unchanged; actual duplicate-image reductions and stable shared-object output.
 
-### H. 字体子集化与合并
+### H. Font subsetting and merging
 
-优先级：P2，字体占比较高的文档再做。成本：大。适用：保留模式。
+P2, font-heavy files first; high cost; preserve.
 
-- 根据 PDF 的实际字符编码、CMap、CIDToGIDMap 与字体程序收集字形；不能只使用提取出的 Unicode 文本。
-- 保留复合字形依赖、宽度、hinting 及 ToUnicode；PDF 字符码 / CID / GID 的映射必须同步核对。动态表单字段与未来编辑所需字符不能按当前显示文字裁掉。
-- 优先验证可识别的 CID TrueType；CFF、Type1、Type3 和不同子集字体合并分别建立后续范围，不做一次性万能改写。
-- Rust `subsetter` 是 PDF 用途的候选，但会重新映射并要求 CID 字体，不能直接换掉任意原字体流；HarfBuzz 的 retain-gids 路径可作为另一方案。fontTools 仅用作开发期独立对照，不引入运行时 Python。
-- 默认不取消字体嵌入，不以系统替代字体换取大小。
+- Collect glyphs from actual PDF codes, CMaps, CIDToGIDMap and programs, not Unicode extraction alone.
+- Retain composites, widths, hinting and ToUnicode. Check code/CID/GID mappings together. Do not remove glyphs needed for future field editing.
+- Start with recognizable CID TrueType; separately scope CFF, Type1, Type3 and cross-subset merging.
+- Rust `subsetter` targets PDF but remaps and requires CID fonts; it cannot replace arbitrary font streams. HarfBuzz retain-gids is another approach. fontTools stays an independent development reference, without runtime Python.
+- Keep font embedding rather than using system substitutes to save bytes.
 
-依据：[Rust subsetter 范围与映射限制](https://docs.rs/subsetter/latest/subsetter/)，[HarfBuzz 子集 API](https://harfbuzz.github.io/harfbuzz-hb-subset.html)，[fontTools 字体子集](https://fonttools.readthedocs.io/en/latest/subset/)。当前两份转曲样本的收益预期低，应在新的字体占比高样本上验收。
+References: [subsetter limits](https://docs.rs/subsetter/latest/subsetter/), [HarfBuzz API](https://harfbuzz.github.io/harfbuzz-hb-subset.html), [fontTools](https://fonttools.readthedocs.io/en/latest/subset/). The two outlined samples offer little expected benefit; validate font-heavy samples.
 
-### I. 改善 Flate 与对象容器的压缩
+### I. Flate and object containers
 
-优先级：P2；写入等级 / 分组实验可提前。成本：小到中。适用：两种模式。
+P2; writer-level/group experiments can begin earlier; small/medium cost; both modes.
 
-- 比较当前对象流等级 6 与 9、分组大小和稳定排列，不把改变排序产生的小差值误认成内容算法改进。
-- 在限额内处理受支持的 Filter 链、DecodeParms 和 predictor；有些现有流被整体跳过，可增加精确解码 / 重编码路径。
-- 对体积大、预计可受益的 Flate 数据选择性尝试 Zopfli；先后都保留有效 zlib 数据格式，对候选解码字节核对。已经是 JPEG / JPX / JBIG2 的流不再套一次通用压缩。
-- 慢速候选到达预算就停止，采用此前最好结果，不让原本能压缩的文档因为优化实验超过 120 秒而失败。
+- Compare object-stream levels 6/9, group sizes and stable order. Small serialization differences are not content-algorithm improvements.
+- Add bounded exact decode/re-encode for supported chains, DecodeParms and predictors currently skipped.
+- Selectively try Zopfli on promising substantial Flate data; preserve valid zlib framing and verify decoded bytes. Do not wrap JPEG/JPX/JBIG2 in generic compression.
+- Stop slow candidates at budget and use the best existing result rather than turning a successful document into a 120-second timeout failure.
 
-依据：[qpdf 文件大小优化与 Zopfli](https://qpdf.readthedocs.io/en/stable/cli.html#optimizing-file-size)，[Zopfli 官方说明](https://github.com/google/zopfli)。其改善主要发生在 Flate 数据部分，不可把 Flate 的改善百分比作为整个 PDF 的改善百分比。
+References: [qpdf size optimization](https://qpdf.readthedocs.io/en/stable/cli.html#optimizing-file-size), [Zopfli](https://github.com/google/zopfli). Flate-only improvement percentages are not whole-PDF percentages.
 
-### J. 扫描件的专用编码与特殊图片
+### J. Scan encodings and special images
 
-优先级：P3。成本：中到大。适用：两种模式的图像资源，首轮先限定常规情况。
+P3; medium/high cost; both modes, ordinary cases first.
 
-- 精确二值图：先实现 CCITT G4，再比较无损 JBIG2 generic region。跨页字典有额外实现与验证成本，后置。
-- 不启用有损 JBIG2 字形替换；淡色内容、灰色抗锯齿或彩色印章不能自动视为可丢弃。
-- JPEG2000 / OpenJPEG 作为候选，比较高分辨率图与线条扫描的无损 / 有损编码效果；完成 PDF.js、PDFium、系统预览和 Windows 阅读器验证后再决定是否采用。
-- CMYK、16 位、特殊 Decode、Indexed 源图与非标准透明情况按类型逐项扩展；优先无损重编码，不盲目转 RGB 导致印刷颜色变化。
+- Exact binary: CCITT G4 first, then lossless JBIG2 generic region. Cross-page dictionaries add separate implementation/validation cost.
+- No lossy JBIG2 glyph substitution; pale marks, gray antialiasing and colored stamps are not automatically disposable.
+- Evaluate JPEG2000/OpenJPEG for lossless/lossy high-resolution images and line scans, requiring PDF.js, PDFium, system preview and Windows reader checks before adoption.
+- Expand CMYK, 16-bit, special Decode, Indexed input and unusual transparency type by type, prioritizing exact encodings without indiscriminate RGB conversion.
 
-依据：[OCRmyPDF 的图像优化](https://ocrmypdf.readthedocs.io/en/latest/optimizer.html)，[OpenJPEG 官方](https://www.openjpeg.org/)，[jbig2enc 原项目](https://github.com/agl/jbig2enc)。jbig2enc 上游注明 refinement 兼容性问题，第一轮不采用该路径；新增编码库分别核对版本、直接依赖、许可及 Windows / macOS 构建。
+References: [OCRmyPDF optimizer](https://ocrmypdf.readthedocs.io/en/latest/optimizer.html), [OpenJPEG](https://www.openjpeg.org/), [jbig2enc](https://github.com/agl/jbig2enc). Upstream refinement compatibility warnings exclude that path initially. Review each new codec's version, dependencies, license and native builds.
 
-### K. Brotli 扩展作为单独的兼容性实验
+### K. Brotli as a separate compatibility experiment
 
-优先级：P3。成本：中。适用：主要是绘制 / 字体 / 对象数据；不是 JPEG 的替代。
+P3; medium cost; mainly drawing/fonts/objects, not a JPEG replacement.
 
-PDF Association 在 2026-08-19 公告发布 Brotli 扩展，文档定义了 PDF 2.0 的 BrotliDecode。它是已发布的行业扩展，不能简单归为“PDF 不支持”；但也不能据此认为所有阅读器都支持。当前锁定的 lopdf 0.45.0 与 PDF.js 6.3.289 代码中已找到 BrotliDecode 解码路径，尚未实测完整产品兼容性。[发布公告](https://pdfa.org/no-excuses-brotli-compression-advances-pdf/)，[扩展规范](https://pdfa.org/download-area/publications/pdf-extension-brotli.pdf)。
+PDF Association announced the Brotli extension on 2026-08-19, defining BrotliDecode for PDF 2.0. It is a published industry extension, but not universally supported. Decode paths were found in pinned lopdf 0.45.0 and PDF.js 6.3.289; complete product compatibility had not yet been tested. [Announcement](https://pdfa.org/no-excuses-brotli-compression-advances-pdf/), [specification](https://pdfa.org/download-area/publications/pdf-extension-brotli.pdf).
 
-- 先离线比较同一解码流的 Flate 与 Brotli 字节 / 速度，不改默认输出。
-- 核对 PDF 2.0 与扩展声明、predictor、大窗口及跨阅读器实现。规范特别提醒对 xref 或包含 Catalog 的对象流使用 Brotli 可能妨碍发现扩展声明，首轮让这些入口保持常规编码。
-- 若将来加入，作为明确的兼容性选项，提供常规 PDF 回退；不能把 Filter 数组写成“Brotli 不支持就用 Flate”，数组表示顺序解码，并非候选格式回退。
-- JPEG XL / AVIF 等方向另行核对已发布规范及实际阅读器支持。此次未取得足以确认普遍兼容的证据，不作为当前默认 PDF 图像格式。
+- Compare Flate/Brotli bytes and speed offline on identical decoded streams without changing default output.
+- Check PDF 2.0/extension declarations, predictors, large windows and readers. Keep xref and Catalog-containing object streams conventional initially, since Brotli there can obstruct extension discovery.
+- Any future option needs explicit compatibility labeling and a conventional-PDF fallback. Filter arrays mean sequential decoding, not “try Brotli, else Flate.”
+- Review published JPEG XL/AVIF specifications and actual readers separately. No evidence here establishes broad compatibility as default PDF image formats.
 
-### L. 可节省时间的优化
+### L. Time-saving work
 
-优先级：伴随 P1 / P2。成本：中。直接改善体积：通常无，但给更好编码留下预算。
+Alongside P1/P2; medium cost; usually no direct size gain, but more budget for useful encoding.
 
-- 在同一批次按原始像素 / 编码与颜色语义缓存候选，避免共享图像重复解码编码。
-- 在有总内存预算、稳定结果顺序及取消机制的条件下，对有限个图片并行；文件队列仍保持现有行为。
-- 评估 MozJPEG 的 SIMD 构建，而不是只提高压缩迭代次数；需要 Windows MSVC、macOS arm64 / Intel 的工具链与发布包验证。
-- 把质量实验的慢候选安排给最大的资源，微小图片优先保留原数据；候选失效不影响已有有效结果。
+- Cache candidates within a batch by original pixels/encoding and color semantics to avoid shared-image repetition.
+- Consider limited image parallelism with total memory budgets, stable order and cancellation; retain file-queue behavior.
+- Evaluate MozJPEG SIMD rather than iterations alone, validating Windows MSVC and both macOS architectures/toolchains/packages.
+- Spend slow experiments on large resources, retaining tiny originals cheaply; failed candidates must not invalidate an existing good result.
 
-## 与当前两种模式不匹配的方向
+## Directions outside the current two modes
 
-MRC 把扫描页拆成背景、前景和文字边缘遮罩，能够分别压缩，是值得了解的成熟方向。[Internet Archive 的 MRC 说明](https://github.com/internetarchive/archive-pdf-tools/blob/master/docs/source/index.rst)描述了该方法，并说明该项目主体代码使用 AGPL。
+MRC separates scan backgrounds, foregrounds and text-edge masks for independent compression. [Internet Archive's MRC documentation](https://github.com/internetarchive/archive-pdf-tools/blob/master/docs/source/index.rst) explains it and the project's AGPL licensing.
 
-当前“整页转图片”要求每页单独一张图片，MRC 的多图 / 遮罩组成会改变这一约定；对数字原生 PDF 直接套 MRC 还会栅格化文字与矢量。因此不加入当前默认两种模式，也不直接集成该 AGPL 项目。只有以后用户明确要求扫描件分层模式，才单独设计或选择适合商业分发的实现。
+Multilayer MRC changes the one-image-per-page contract; applying it to digital PDFs also rasterizes text/vectors. It is excluded from current defaults and that AGPL project is not integrated. A future explicit layered-scan mode would need separate design and suitable distribution licensing.
 
-同样，默认不删除附件、书签、批注或标签，不取消字体嵌入，不扁平化透明组，也不做自动灰度 / 二值化。Adobe 提供这些优化选项，但它们可能改变内容或功能，需要明确的产品约定。[Adobe 优化设置](https://helpx.adobe.com/acrobat/desktop/create-documents/optimize-pdfs/advance-size-reduction.html)。
+Defaults also retain attachments, bookmarks, annotations, tags, embedded fonts and transparency groups, with no automatic grayscale/thresholding. Adobe offers such options, but they can change content/functions and require an explicit product contract. [Adobe settings](https://helpx.adobe.com/acrobat/desktop/create-documents/optimize-pdfs/advance-size-reduction.html).
 
-“快速网页查看”主要改变资源排序及首屏访问，可能增加文件大小，不作为缩小 PDF 的优先措施。[OCRmyPDF 的 linearization 说明](https://ocrmypdf.readthedocs.io/en/latest/optimizer.html#fast-web-view)。
+Fast Web View mainly changes ordering/first-page access and can grow files, so it is not a size priority. [OCRmyPDF linearization](https://ocrmypdf.readthedocs.io/en/latest/optimizer.html#fast-web-view).
 
-## 实施顺序与交付
+## Delivery sequence
 
-| 阶段     | 范围                                                                        | 完成标志                                                             |
-| -------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 第一阶段 | A 体积 / 画质基准；B 图片候选；C JPEG 系数域优化；I 中写入配置的小规模实验  | 各策略有独立收益和画质证明，保真不降采样，两种模式全部档位可回退     |
-| 第二阶段 | D 内容参数实验；Jpegli 对照；E 测试文档 B Form 专项；L 成本控制             | 在已有结果基础上同等画质更小，或相近体积下小字更好；不能只有压缩率表 |
-| 第三阶段 | F 使用图与保护粒度；G 资源去重 / 清理；H 字体；J G4 / 无损 JBIG2 / JPEG2000 | 扩大不同类型文档的受益范围，特殊资源、映射和交互功能完整             |
-| 第四阶段 | K Brotli 与新格式兼容性                                                     | 常用阅读器兼容性矩阵通过后才讨论产品选项，默认常规 PDF 保持          |
+| Stage  | Scope                                                                   | Acceptance                                                                                            |
+| ------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| First  | A baselines, B candidates, C coefficients, small I writer experiments   | Independent gain/quality evidence, unchanged Fidelity resolution, fallback for both modes/all presets |
+| Second | D content parameters/Jpegli, E Document B Forms, L costs                | Smaller at comparable quality or clearer small text at similar size; more than ratio tables           |
+| Third  | F usage/protection, G cleanup/sharing, H fonts, J G4/lossless JBIG2/JP2 | Broader coverage with intact special resources/mappings/interactivity                                 |
+| Fourth | K Brotli/new formats                                                    | Reader matrix passes before product options; conventional PDF remains default                         |
 
-五轮已完成各自的实施或受限实验，范围见验证记录。第二阶段的 Form 精度与缓存、第三阶段的每图片保护、XObject 清理、精确样本去重与 G4，以及第五轮的资源子图共享、更广资源清理、Indexed / G4 / CMYK 输入和有界 Zopfli，均进入各自受限的默认路径。字体子集只完成显式 CID 清单实验；JP2 与第四阶段 Brotli 未通过兼容性门槛，JPEG 参数 / Jpegli 未通过全部局部画质筛选，均未默认启用。JBIG2、内联图片与通用字体使用收集仍未实现。第五轮之后的新增缺口和实验见 [通用能力深入检查](PDF-OPTIMIZATION-NEXT.md)。每阶段独立验收，未达到收益 / 画质门槛的方案留在实验记录。
+Five rounds completed implementation or restricted experiments as recorded in validation. Form precision/cache, per-image protection, XObject cleanup, exact-sample sharing/G4, and fifth-round subgraphs, broader cleanup, Indexed/G4/CMYK inputs and bounded Zopfli entered restricted defaults. Fonts completed explicit-CID experiments only. JP2/Brotli failed compatibility gates; JPEG parameters/Jpegli failed all required local-quality gates, so none became defaults. JBIG2, inline images and general font usage remained unimplemented at that point. See the [post-fifth-round review](PDF-OPTIMIZATION-NEXT.md). Each stage is independently accepted; failed gain/quality candidates stay experimental.
 
-## 共同验收方法
+## Common acceptance method
 
-1. 以 0.1.10 为固定基线，每次从原件开始；各策略独立启停再组合，便于定位回退和体积增大的原因。
-2. 两种模式分别比较。保留模式核对文字、字体映射、页面框、图片尺寸、ICC、遮罩、链接 / 表单 / 附件 / 标签；图片模式核对每页一图、页序、旋转、裁剪区域和可见表单批注。
-3. 声称无损的候选核对解码字节或系数。矢量检查还包括变换、填充规则、空洞和绘制次序；结构解析通过不能替代渲染验证。
-4. 所有页做基础独立渲染；细小彩字、数字、图表线条、渐变、透明和印章以更高分辨率及局部图检查。全页 RMSE / SSIM 不能独自决定小字可读性。
-5. 编码器对比在相同输入像素、尺寸、颜色与可接受画质下进行，另比较相近体积下的效果；图库研究数据不能代替真实 PDF 结果。
-6. 记录耗时、峰值内存、取消与超时表现；慢速方案不能使现有大文件从成功变成失败。保持输出稳定、原件只读和输出不覆盖。
-7. macOS arm64 / Intel 与 Windows x64 实际打包、安装及阅读器检查完成后再形成发布结论。Adobe Acrobat 目前不可用，不要求用户重新生成其对照，不宣称已证明优于 Acrobat。
+1. Freeze 0.1.10 and start every run from originals. Toggle strategies independently before combining them to diagnose growth/fallback.
+2. Compare modes separately. Preserve checks text, font mapping, page boxes, image dimensions, ICC, masks, links/forms/attachments/tags. Image checks one image per page, order, rotation, crop and visible fields/annotations.
+3. Verify decoded bytes/coefficients for lossless claims. Vector checks include transforms, fill rules, holes and order. Parsing success is not render validation.
+4. Independently render every page; inspect fine colored text, numbers, charts, gradients, transparency and stamps at higher resolution/crops. Whole-page RMSE/SSIM alone cannot establish readability.
+5. Compare encoders on identical pixels, dimensions/colors and acceptable quality, plus comparable-size views. Photo-library studies do not replace actual PDF evidence.
+6. Record time, peak memory, cancellation and timeouts. Slow candidates must not turn successful large files into failures. Keep output stable, originals read-only and no overwriting.
+7. Native packaging, installation and reader checks are required for macOS arm64/Intel and Windows x64 before release conclusions. Acrobat was unavailable; no new user-generated comparison was required and superiority over Acrobat was not established.
 
-第六轮补充落实原始颜色样本精确重编码、默认 Decode 识别和完整文件布局竞争，并让严格 Lossless 使用精确图片候选；预算、保护与结果见 [验证记录](VALIDATION.md)。这些是受限通用能力，后续图形状态精简、Form 展开、过滤器链与自动字体子集尚未实现。
+The sixth round added exact raw components, default Decode and complete-layout competition, allowing strict Lossless image candidates. See [validation](VALIDATION.md) for budgets, protection and results. These are restricted general capabilities; graphics-state simplification, Form inlining, chains and automatic fonts were still outstanding at that historical point.
 
-本文保留原始研究记录；已落地范围以验证记录为准，实验完成不等于产品验收通过，尚未通过的候选没有作为默认算法发布。
+This document preserves original research. Validation governs delivered scope; completed experiments are not automatically product acceptance, and failed candidates were not released as defaults.

@@ -1,20 +1,20 @@
-# 0.1.24：更新透明 Logo
+# 0.1.24: refreshed transparent logo
 
-日期：2026-10-11，macOS arm64。采用用户重新提供的 `Downloads/logo.png`，原样复制为 `public/logo.png`；1046 × 1046，952,077 字节，保留透明通道。SHA-256：`3eb78975f6929dd60ebe7c45ce93bbfc46b1a6d457301aeca3b4cfe7f50c50bf`。
+Date: 2026-10-11; macOS arm64. The replacement `Downloads/logo.png` was copied unchanged to `public/logo.png`: 1046 × 1046, 952,077 bytes, with its alpha channel preserved. SHA-256: `3eb78975f6929dd60ebe7c45ce93bbfc46b1a6d457301aeca3b4cfe7f50c50bf`.
 
-- 重新生成 Windows ICO、macOS ICNS 和仓库现有尺寸资源，包括单独的 64 px 图标；同步更新 favicon。图标生成器仍会更新已有移动端图标，产品支持的平台保持 Windows / macOS。
-- 保持原有红色点缀、界面布局、Apache-2.0 授权和压缩策略；同步项目版本为 0.1.24。没有修改压缩引擎源码或依赖版本。
-- TypeScript / 生产构建通过。本地前端在 1180 × 820 下检查浅色和深色主题，Logo 正常加载为 40 × 40，原始尺寸 1046 × 1046，无白色外框或横向溢出；检查时没有控制台错误。截图位于忽略的 `tmp/logo-refresh/ui-light.png` 和 `ui-dark.png`。
-- macOS arm64 App / worker 版本核对通过，App / worker 严格 ad-hoc 签名和 DMG 校验通过；只读挂载后的应用图标与本次生成 ICNS 一致，主程序 / worker 与构建产物相同，项目许可与完整第三方材料检查通过。
+- Regenerated Windows ICO, macOS ICNS and existing size variants, including the separate 64 px icon; updated the favicon. The generator also updates existing mobile assets; supported platforms remain Windows/macOS.
+- Retained red accents, interface layout, Apache-2.0 licensing and compression strategies; synchronized the version to 0.1.24. Engine code and dependency versions were unchanged.
+- TypeScript and production build passed. The local frontend was checked in light/dark themes at 1180 × 820. The logo loaded at 40 × 40 from its 1046 × 1046 source, without a white frame or horizontal overflow; no console errors occurred during inspection. Screenshots are in ignored `tmp/logo-refresh/ui-light.png` and `ui-dark.png`.
+- macOS arm64 App/worker versions, strict ad-hoc signatures and DMG verification passed. After read-only mounting, the app icon matched the generated ICNS, executables matched the build, and project licensing plus complete third-party materials passed checks.
 
-| 交付物                                            | SHA-256                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------ |
-| `Squeeze PDF_0.1.24_aarch64.dmg`，18,550,851 字节 | `99ba2cc196984357412227d130f3df60c81683d644eda4d00c72482674786aaa` |
-| App 主程序                                        | `421f6b3dfc71f136f57577db28bfa595ce6e2d24518768a1ad09b50e107c7ba4` |
-| 包内 worker                                       | `c883820f564ad6c4892c1c2023b4437fd47e043e43b54badf949b1faf42542e4` |
+| Deliverable                                        | SHA-256                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| `Squeeze PDF_0.1.24_aarch64.dmg`, 18,550,851 bytes | `99ba2cc196984357412227d130f3df60c81683d644eda4d00c72482674786aaa` |
+| App executable                                     | `421f6b3dfc71f136f57577db28bfa595ce6e2d24518768a1ad09b50e107c7ba4` |
+| Bundled worker                                     | `c883820f564ad6c4892c1c2023b4437fd47e043e43b54badf949b1faf42542e4` |
 
-本次仅更新品牌资源及版本，未重新执行引擎回归或真实 Tauri 连续任务测试；Windows / Intel 新安装包、正式签名和公证未在本轮完成。包验证记录位于忽略的 `tmp/logo-refresh/package-proof.json`；0.1.23 DMG 保留原校验值。
+This update changed brand assets and version only. Engine regression and real Tauri consecutive-task tests were not rerun; new Windows/Intel packages, production signing and notarization were not completed in this round. Package evidence is in ignored `tmp/logo-refresh/package-proof.json`; the 0.1.23 DMG retained its previous checksum.
 
-按用户后续要求，同次 Git 提交包含先前的许可补齐、Apache-2.0 授权和品牌调整，并补充与界面一致的八语言 README 及相互切换链接。文档改动不影响已验证安装包；GitHub 仓库可见性保持 Private。
+At the user's later request, the same Git commit included earlier licensing completion, Apache-2.0 adoption and branding, plus eight mutually linked README translations matching the interface. Documentation changes did not affect the verified package. Repository visibility was Private at the time of this record.
 
-提交前检查：八份 README 的 197 个本地链接和八语言导航有效，七份译文的 21 条命令一致，并核对关键档位参数、运行环境与许可说明。十项许可回归、TypeScript 和差异检查通过。
+Pre-commit checks: 197 local links and eight-language navigation across the eight READMEs were valid; 21 commands matched across the seven translations; key preset parameters, environment requirements and licensing were checked. Ten license regressions, TypeScript and diff checks passed.

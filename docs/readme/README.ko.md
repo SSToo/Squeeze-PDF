@@ -1,10 +1,10 @@
 # Squeeze PDF
 
-[English](README.en.md) · [简体中文](../../README.md) · [Français](README.fr.md) · [Español](README.es.md) · **한국어** · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Português](README.pt.md)
+[English](../../README.md) · [简体中文](README.zh-CN.md) · [Français](README.fr.md) · [Español](README.es.md) · **한국어** · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Português](README.pt.md)
 
 Windows와 macOS용 오픈 소스 오프라인 PDF 압축 프로그램이며, 현재 MVP 단계입니다. 인터페이스는 Tauri 2와 React를 사용합니다. Rust로 압축 전략, 이미지 처리, 페이지 재구성, 파일 보호를 구현했습니다. PDF 읽기·쓰기는 lopdf, 데스크톱 렌더링은 로컬 PDF.js, CLI 기본 렌더링은 hayro를 사용합니다. JPEG 인코딩은 Rust 바인딩으로 정적 링크한 MozJPEG를 사용합니다. 실행 시 qpdf, Ghostscript, Python은 필요하지 않습니다.
 
-[GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases)에서 Windows x64, Apple silicon Mac, Intel Mac 설치 파일을 다운로드할 수 있습니다. 앱 버전과 일치하는 `v` 태그를 푸시하면 세 플랫폼의 빌드가 모두 성공한 뒤 설치 파일과 체크섬을 자동으로 게시합니다. [릴리스 가이드](../RELEASING.md)(중국어/영어)를 참고하세요.
+[GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases)에서 Windows x64, Apple silicon Mac, Intel Mac 설치 파일을 다운로드할 수 있습니다. 앱 버전과 일치하는 `v` 태그를 푸시하면 세 플랫폼의 빌드가 모두 성공한 뒤 설치 파일과 체크섬을 자동으로 게시합니다. [릴리스 가이드](../RELEASING.md)(영어)를 참고하세요.
 
 0.1.25부터 정식 버전은 시작 약 5초 후와 실행 중 24시간마다 GitHub의 안정 버전 업데이트를 확인합니다. 상단 업데이트 아이콘으로 수동 확인할 수도 있습니다. 설치와 재시작은 사용자가 선택하며 진행 중인 파일 작업이 끝난 후에만 가능합니다. 오프라인 확인 실패는 압축을 중단하지 않습니다. 네트워크는 버전 확인과 업데이트 다운로드에만 사용하며 PDF는 업로드하지 않습니다. 0.1.24 이하 버전은 먼저 한 번 수동으로 업그레이드해야 합니다.
 
@@ -124,7 +124,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 큰 샘플은 취소와 대용량 파일 시험용 약 138 MB, 24페이지 PDF를 추가 생성합니다. 합성 샘플의 압축률로 실제 문서를 예측할 수 없습니다. Poppler, pypdf, Pillow, NumPy는 개발 중 독립 검증 도구이며 실행 의존성이 아닙니다.
 
-상세 기술 기록은 현재 중국어입니다. [검증](../VALIDATION.md), [계획](../../PLAN.md). Jpegli와 Brotli 출력은 개발 실험이며 제품 의존성이나 출력 옵션이 아닙니다.
+상세 기술 기록은 영어로 제공됩니다. [검증](../VALIDATION.md), [계획](../../PLAN.md). Jpegli와 Brotli 출력은 개발 실험이며 제품 의존성이나 출력 옵션이 아닙니다.
 
 ## 외부 구성 요소
 

@@ -1,47 +1,47 @@
-# 0.1.23：Apache-2.0 与品牌资源
+# 0.1.23: Apache-2.0 and brand assets
 
-日期：2026-10-11。用户选择 Apache-2.0，允许商业使用及闭源衍生产品。
+Date: 2026-10-11. The user selected Apache-2.0, allowing commercial use and closed-source derivatives.
 
-后续 Logo 更新：0.1.24 使用用户重新提供的透明 PNG，当前 `public/logo.png` 已替换；本页记录的是 0.1.23 首次品牌调整时的资源和安装包校验值，详见 [0.1.24 更新记录](LOGO-0.1.24.md)。
+Subsequent logo update: 0.1.24 replaced `public/logo.png` with the newly supplied transparent PNG. This page records the initial 0.1.23 brand assets and package checksums; see the [0.1.24 record](LOGO-0.1.24.md).
 
-## 授权与分发
+## Licensing and distribution
 
-- 新增完整 `LICENSE` 和项目署名 `NOTICE`；Cargo workspace、npm 根包 / 锁文件、Tauri 安装包元数据统一为 Apache-2.0。crate 继续继承 workspace 的许可。
-- README 说明授权范围和第三方例外，新增 CONTRIBUTING.md。`package.json` 保持 `private: true`，用于防止误发布 npm，不影响开源授权。
-- 所有桌面构建在应用资源 `third-party/` 中附带 `PROJECT-LICENSE.txt` / `PROJECT-NOTICE.txt`，macOS 自定义 DMG 根目录另提供 `LICENSE.txt` / `NOTICE.txt`。许可检查会拒绝正文截断或署名缺失的分发材料。
-- 自有代码的 Apache-2.0 不改变第三方库、字体或其他资产的原许可。上一轮补齐的 Liberation 字体上游源码 / 实际字体 TTX 源码、MPL 依赖完整源码、QuickJS 和 Mozilla MIT 声明继续随包保留，详见 [0.1.22 许可记录](LICENSING-0.1.22.md)。
+- Added the full `LICENSE` and project `NOTICE`; aligned Cargo workspace, npm root/lockfile and Tauri installer metadata to Apache-2.0. Crates continue inheriting the workspace license.
+- Documented scope and third-party exceptions in the README and added CONTRIBUTING.md. `package.json` retains `private: true` to prevent accidental npm publication; this does not affect open-source licensing.
+- All desktop builds include `PROJECT-LICENSE.txt` and `PROJECT-NOTICE.txt` under application resources `third-party/`. The custom macOS DMG also includes `LICENSE.txt` and `NOTICE.txt` at its root. License checks reject truncated texts or missing attribution.
+- Apache-2.0 for original code does not change third-party library, font or asset licenses. Liberation upstream/actual-font TTX sources, complete MPL dependency sources and QuickJS/Mozilla MIT notices remain bundled; see the [0.1.22 licensing record](LICENSING-0.1.22.md).
 
-Apache-2.0 允许使用、修改、分发和商用，但需要遵守保留许可及相关署名、标示修改等条件；专利授权的具体范围及终止条件以 [官方正文](https://www.apache.org/licenses/LICENSE-2.0) 为准。没有将分别授权的第三方材料改标为 Apache-2.0，也没有加入额外的商用禁令。
+Apache-2.0 permits use, modification, distribution and commercial use subject to retaining licenses/notices, identifying changes and its other conditions. The [official text](https://www.apache.org/licenses/LICENSE-2.0) governs the patent grant and termination conditions. Separately licensed third-party material was not relabeled Apache-2.0, and no additional commercial-use prohibition was added.
 
-## Logo 与颜色
+## Logo and colors
 
-采用用户提供的 `Downloads/logo.png`，原始 1254 × 1254 PNG 保留为 `public/logo.png`，未重绘。SHA-256：`7f57ce7c68bf1fd0df096c83e6eb871c6d5f52e509d013f5e8948dcc35fb5b38`。
+The supplied `Downloads/logo.png` was preserved as `public/logo.png`, a 1254 × 1254 PNG, without redrawing. SHA-256: `7f57ce7c68bf1fd0df096c83e6eb871c6d5f52e509d013f5e8948dcc35fb5b38`.
 
-窗口左上角及 favicon 使用此图；Tauri CLI 从同一文件生成 Windows ICO / macOS ICNS 和尺寸图。生成器同时更新仓库已有的移动端图标资源，不代表新增移动端支持。
+The window header and favicon use this image. Tauri CLI generates Windows ICO, macOS ICNS and size variants from the same source. Updating existing mobile icon assets does not imply mobile-platform support.
 
-界面品牌点缀改为红色系：主要按钮、选中边框、单选框、档位标识、进度和空状态插画。浅色背景为中性浅灰，深色背景为炭灰。保留原有两种压缩模式、语言选择和主题切换；旧引擎代码及压缩参数未变化。
+Brand accents became red: primary buttons, selected borders, radio controls, preset badges, progress and the empty-state illustration. Light backgrounds are neutral gray and dark backgrounds charcoal. Both compression modes, language selection and theme switching were retained; engine code and compression parameters did not change.
 
-主要文字 / 背景组合的 WCAG 对比度：红色按钮白字 4.80:1；浅色品牌文字 / 浅红底 4.64:1；深色品牌文字 / 选中底 6.17:1；浅色 / 深色次要文字分别为 4.93:1 / 7.08:1。控件边界对表面为 3.16:1 / 3.48:1。为旧 WebKit 提供单选框颜色回退，为强制颜色模式使用系统色；未声称所有平台的辅助技术均完成实机验收。
+WCAG contrast for principal text/background pairs: white text on red buttons 4.80:1; light-theme brand text on pale red 4.64:1; dark-theme brand text on selected surfaces 6.17:1; secondary text in light/dark themes 4.93:1 / 7.08:1. Control borders against surfaces: 3.16:1 / 3.48:1. Radio colors have an older-WebKit fallback; forced-colors mode uses system colors. This does not claim acceptance testing with assistive technologies on every platform.
 
-## 验证范围
+## Validation scope
 
-- 十项许可回归、TypeScript、五项八语言回归和前端 PDF.js 渲染 / 表单批注准备检查通过。
-- 本地前端实际检查 1180 × 820 的浅色 / 深色主题、两种输出模式和中文 / 德语切换；900 × 650 最小窗口下的德语图片模式无横向溢出，Logo 正常加载，检查时无浏览器控制台错误。截图位于忽略的 `tmp/open-source/ui-*.png`。
-- macOS arm64 App / worker 为 0.1.23，严格 ad-hoc 签名及 DMG 校验通过。只读挂载 DMG 核对完整许可 / 源码材料、根目录项目许可与署名、生成图标和两个可执行文件；包内 worker 对八类样本的 38 个组合与上一版验收结果逐字节相同，原件哈希保持。本次未重跑 141 项 Rust 测试及全部 488 个组合，未改引擎源码或依赖版本。
-- 这些界面检查没有调用 Tauri 原生文件选择或实际桌面压缩流程。Windows / macOS Intel 新版包未在本机构建，真实桌面连续任务、正式签名与公证仍需单独验收。
+- Ten license regressions, TypeScript, five eight-language regressions and frontend PDF.js rendering/form-and-annotation preparation checks passed.
+- The local frontend was inspected at 1180 × 820 in both themes, both modes and Chinese/German. German image mode at the 900 × 650 minimum window had no horizontal overflow; the logo loaded and no browser console errors occurred during inspection. Screenshots are in ignored `tmp/open-source/ui-*.png`.
+- macOS arm64 App/worker version 0.1.23, strict ad-hoc signatures and DMG verification passed. A read-only DMG mount confirmed complete license/source materials, root project license/notices, generated icons and both executables. The bundled worker's 38 combinations across eight sample categories were byte-identical to the previous accepted version, with unchanged input hashes. The 141 Rust tests and all 488 combinations were not rerun; engine code and dependency versions were unchanged.
+- These interface checks did not exercise Tauri native file selection or the actual desktop compression flow. New Windows/macOS Intel packages were not built locally. Consecutive real desktop tasks, production signing and notarization still required separate acceptance tests.
 
-| 0.1.23 交付物                                     | SHA-256                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------ |
-| `Squeeze PDF_0.1.23_aarch64.dmg`，18,751,284 字节 | `ddb958178af4381e7059ebb31f50c287d2ee42cb4648138ab71b2724525516c1` |
-| App 主程序                                        | `eb600df350a27da9c41411ae2a3957aaf55d51d94d025bd71cabe99d7d7ac94c` |
-| 包内 worker                                       | `fd72fcf7c1aa81e7722300b0d8354d35243b3e85edf25470c973158d3ac46df2` |
+| 0.1.23 deliverable                                 | SHA-256                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| `Squeeze PDF_0.1.23_aarch64.dmg`, 18,751,284 bytes | `ddb958178af4381e7059ebb31f50c287d2ee42cb4648138ab71b2724525516c1` |
+| App executable                                     | `eb600df350a27da9c41411ae2a3957aaf55d51d94d025bd71cabe99d7d7ac94c` |
+| Bundled worker                                     | `fd72fcf7c1aa81e7722300b0d8354d35243b3e85edf25470c973158d3ac46df2` |
 
-包验证记录和回归结果分别在忽略的 `tmp/open-source/package-proof.json`、`tmp/open-source/packaged-0.1.23/results.json`。旧 0.1.22 DMG 保持上一轮哈希。
+Package evidence and regression results are in ignored `tmp/open-source/package-proof.json` and `tmp/open-source/packaged-0.1.23/results.json`. The older 0.1.22 DMG retained its previous hash.
 
-## 仓库发布检查
+## Repository publication checks
 
-对当前非忽略文件及三次可达 Git 提交的文本对象进行基础检查：扫描 388 个文本对象，跳过 105 个二进制或大对象，未发现高置信密钥模式；无已跟踪的客户 PDF、`.env` 或私钥文件。Git 作者邮箱为 GitHub noreply。记录在忽略的 `tmp/open-source/history-audit.json`；此检查不是完整的安全审计。
+A basic scan covered current non-ignored files and text objects in three reachable Git commits: 388 text objects inspected, 105 binary/large objects skipped, no high-confidence secret patterns found, and no tracked customer PDFs, `.env` or private keys. Git author email used GitHub noreply. Evidence is in ignored `tmp/open-source/history-audit.json`; this was not a comprehensive security audit.
 
-开发验证脚本改为 PATH 中的 `python3`，支持 `SQUEEZE_QA_PYTHON` 覆盖，避免依赖开发者机器的固定目录。当前验证文档中的个人主目录改为相对 `Downloads/` 描述；旧 Git 历史仍保留原开发路径，没有重写历史。
+Development validation scripts now use `python3` from PATH with a `SQUEEZE_QA_PYTHON` override instead of a fixed developer-machine directory. Personal home paths in current validation documents were replaced with relative `Downloads/` descriptions. Historical Git commits retain earlier development paths; history was not rewritten.
 
-上述材料完成开源授权准备，并与 0.1.24 品牌资源及八语言 README 一并提交。GitHub 仓库 `SSToo/Squeeze-PDF` 可见性仍为 Private；开源许可证与仓库公开设置分别管理，公开现有仓库也会公开其既有提交历史。
+These materials completed open-source licensing preparation and were committed with the 0.1.24 branding and eight-language READMEs. Repository `SSToo/Squeeze-PDF` was still Private at the time of this record. License selection and repository visibility are separate settings; publishing an existing repository also exposes its existing commit history.

@@ -1,75 +1,75 @@
-# 图片模式优化调查
+# Image-mode optimization investigation
 
-日期：2026-10-05。调查对象为 ImagesTool 的公开页面、前端资源和网站自带演示。桌面 PDF 只在本地检查，没有导入第三方网站。最初调查未修改产品；用户随后授权接入 MozJPEG，0.1.2 的实施结果见下文。
+Date: 2026-10-05. Sources: ImagesTool's public pages, frontend assets and built-in demo. Desktop PDFs were inspected locally and never uploaded to a third-party website. The initial investigation did not change the product; the user later authorized MozJPEG integration, implemented in 0.1.2 below. Website parameters reflect the implementation inspected on this date and may change later.
 
-## 0.1.4：保留模式的矢量重复数据
+## 0.1.4: repeated vectors in preserve mode
 
-继续分析 H 后确认，转曲正文反复嵌入相同轮廓是主要剩余开销。Rust 新增精确的重复轮廓识别和矢量 Form 复用；相交轮廓保持一组，图案 / 渐变、裁剪、开放路径和交互文档跳过，只有整体收益为正才采用。
+Further analysis of source H identified repeatedly embedded outlined text as the main remaining overhead. Rust gained exact repeated-outline detection and vector Form reuse. Intersecting outlines stay together; patterns/gradients, clipping, open paths and interactive documents are skipped. Adoption requires positive total savings.
 
-在图片质量与 DPI 档位不变的条件下，H 保留更小从 35,418,667 降到 3,034,553 字节，均衡从 36,520,413 降到 4,136,053 字节。两档全部 52 页独立渲染通过，相对对应 0.1.3 结果 RGB RMSE 中位数约 0.243。字体、Type3 字形、透明遮罩和 ICC 内容保持。重复轮廓较多的文档受益最大；原本高效使用字体的 PDF 不会有同等比例收益。
+With image quality/DPI unchanged, H preserve Smaller fell from 35,418,667 to 3,034,553 bytes and Balanced from 36,520,413 to 4,136,053 bytes. All 52 pages of both presets passed independent rendering; median RGB RMSE against corresponding 0.1.3 results was about 0.243. Fonts, Type3 glyphs, transparency masks and ICC content were retained. Outline-heavy documents benefit most; PDFs already using fonts efficiently will not see comparable ratios.
 
-详细保护条件、画质边界和回归记录见 [VALIDATION.md](VALIDATION.md)。
+See [VALIDATION.md](VALIDATION.md) for protections, quality boundaries and regression evidence.
 
-## 0.1.3：本轮结论与实施
+## 0.1.3: findings and implementation
 
-用户已确认 W 是参考网站的“质量优先 / 位图 PDF”结果；S 不再用于本轮评估。Acrobat 无法使用，因此没有要求用户再生成 Acrobat 对照，也没有声称完成与 Acrobat 的实测排名。
+The user confirmed W as the reference website's Quality priority / bitmap PDF output. S was excluded from this round. Acrobat was unavailable; no new Acrobat output was requested and no measured ranking against Acrobat was claimed.
 
-- 0.1.2 的 H 保留更小结果中，约 44.51 MB 为页面绘制等数据流，图片仅约 1.10 MB。只调整图片编码无法解决大部分剩余体积。
-- 桌面保留模式的均衡 / 更小档增加路径精度优化：只处理独立页面流，跟踪 q / Q 与 cm 变换、UserUnit，按物理坐标限制舍入误差。矩形角点考虑 x+w / y+h 的累积误差；内容数组、Form、字形、图案、其他用途共享流和交互文档跳过。保真档和 CLI 默认不启用。
-- 桌面位图模式改用现有本地 PDF.js，直接渲染到最终像素尺寸；逐页二进制传给 Rust，由 MozJPEG / Flate 选择编码并重建 PDF。没有 JPEG 中间文件；按页释放画布、支持渲染取消和超时，源哈希及尺寸在两端校验。
-- 本地 macOS arm64 桌面 H 位图均衡为 9,813,647 字节；W 为 9,811,180 字节，相差约 0.025%。全部 52 页的位图尺寸为 1400 × 1811；与 W 比较实际绘制图像，W 的资源字典包含共享的 52 张图，不能误取每页字典中的第一张。
-- 对 W 的同尺寸解码像素 RMSE 中位数由约 12.35 降至 5.63。旧版高度为 1812，因此比较时使用 Lanczos 缩至 1811。这个指标表示更接近参考结果，不能单独证明更接近原件或人眼画质更好。浏览器 Canvas 实现也会影响渲染结果，Node / Skia 实验与 macOS WebKit 实际输出不同。
-- H 保留更小为 35,418,667 字节，旧版为 45,869,733；均衡为 36,520,413，旧版为 46,971,479。保留原有文字与矢量类型，极细边缘可能变化。52 页独立渲染与旧版保留结果的 RGB RMSE 中位数约 0.642；抽查非路径操作和文字保持，遮罩、ICC 和 Type3 字形流的解码字节集合相同。
+- H preserve Smaller in 0.1.2 contained about 44.51 MB of drawing/other streams and only about 1.10 MB of images. Image encoding alone could not remove most remaining size.
+- Desktop preserve Balanced/Smaller gained path precision optimization for independent page streams. It tracks q/Q, cm and UserUnit, bounding rounding in physical coordinates. Rectangle corners account for accumulated x+w/y+h error. Contents arrays, Forms, glyphs, patterns, streams shared for other purposes and interactive documents are skipped. Fidelity and CLI defaults did not enable this then.
+- Desktop image mode switched to existing local PDF.js, rendering directly at final dimensions, transferring each page as binary to Rust, then choosing MozJPEG/Flate and rebuilding. No intermediate JPEG file is used. Canvases are released per page, rendering supports cancellation/timeouts, and both ends check source hashes/dimensions.
+- Local macOS arm64 H image Balanced was 9,813,647 bytes versus W at 9,811,180, about 0.025% apart. All 52 images were 1400 × 1811. W's resource dictionaries share all 52 images; comparison must identify the actually drawn image rather than the first dictionary entry.
+- Median same-size decoded RMSE against W improved from about 12.35 to 5.63. The older 1812-pixel height was Lanczos-resized to 1811 for comparison. This means closer to the reference, not necessarily closer to the original or perceptually better. Canvas implementation affects output; Node/Skia experiments differ from actual macOS WebKit.
+- H preserve Smaller was 35,418,667 bytes versus 45,869,733 previously; Balanced 36,520,413 versus 46,971,479. Text/vector types remained, but very fine edges can change. All 52 independently rendered pages had median RGB RMSE about 0.642 against previous preserve output. Sampled non-path operations/text were unchanged; masks, ICC and Type3 glyph streams retained identical decoded-byte sets.
 
-本轮详细回归见 [VALIDATION.md](VALIDATION.md)。下文保留历史调查，S 相关旧数据不作为本轮参考。
+See [VALIDATION.md](VALIDATION.md). Historical S measurements below are not this round's reference.
 
-## 参考实现中确认的内容
+## Confirmed reference behavior
 
-- [压缩界面](https://pdf.imagestool.com/zh-CN/compress-pdf)有原生 / 位图两种模式。位图高级设置提供 JPG / PNG、质量、像素宽度、灰度和二值化；PNG 可设置颜色数量。
-- 当前公开[压缩组件](https://pdf.imagestool.com/b/js/cf6b0ada.js)和[处理模块](https://pdf.imagestool.com/b/js/4a0bf74f.js)显示，默认位图质量优先档为宽 1400 px、JPEG 质量 72，高强度档为宽 1000 px、质量 60。高级设置会覆盖默认档位。这些是当前实现参数，之后可能变化。
-- 位图调用的渲染器为 PDF.js；JPEG 压缩调用 MozJPEG worker，设置渐进编码、优化 Huffman、量化表选项 3 和色度采样。不能仅凭界面文案推断它有自动页面分类，也不能把网站宣称的压缩率视作同画质测试结果。
-- [MozJPEG 官方说明](https://github.com/mozilla/mozjpeg/blob/master/README-mozilla.txt)介绍了扫描优化、Trellis 量化和去振铃等能力，并明确指出更高压缩率会增加编码时间。没有单独验证网站 worker 中所有能力的最终启用状态。
+- The [compression interface](https://pdf.imagestool.com/zh-CN/compress-pdf) offers native/bitmap modes. Bitmap advanced controls include JPG/PNG, quality, pixel width, grayscale and thresholding, plus PNG color count.
+- Inspected [compression component](https://pdf.imagestool.com/b/js/cf6b0ada.js) and [processing module](https://pdf.imagestool.com/b/js/4a0bf74f.js) use 1400 px/JPEG 72 for bitmap quality priority and 1000 px/quality 60 for high compression. Advanced settings override presets. These are implementation parameters, not permanent guarantees.
+- Bitmap rendering uses PDF.js and JPEG encoding a MozJPEG worker with progressive encoding, optimized Huffman, quantization-table option 3 and chroma sampling. UI copy does not establish automatic page classification; advertised ratios are not same-quality measurements.
+- [MozJPEG documentation](https://github.com/mozilla/mozjpeg/blob/master/README-mozilla.txt) describes scan optimization, Trellis and deringing, with higher compression costing encoding time. Not every capability's final activation in the website worker was independently verified.
 
-## 0.1.1 实现的差距
+## 0.1.1 gaps
 
-`raster.rs` 使用 hayro 直接按最终 DPI 渲染，再把所有有损页面统一编码为 RGB JPEG。`jpeg.rs` 已启用优化 Huffman，但采用基础量化和顺序编码，没有 MozJPEG 的扫描优化与 Trellis 量化。黑白文字页、线条图、照片页没有不同的编码选择。
+`raster.rs` rendered with hayro directly at final DPI, then encoded all lossy pages as RGB JPEG. `jpeg.rs` enabled optimized Huffman but used basic quantization/sequential coding without MozJPEG scan optimization/Trellis. Monochrome text, line art and photos shared one encoding path.
 
-0.1.1 更小档使用 100 DPI / JPEG 50；均衡档使用 200 DPI / JPEG 85。参考站使用像素宽度控制，因此同名档位不可直接比较：Letter 纸的 1000 / 1400 px 宽分别约为 118 / 165 DPI。
+Smaller used 100 DPI/JPEG 50 and Balanced 200 DPI/JPEG 85. The reference uses pixel width, so identically named presets are not directly comparable: Letter at widths 1000/1400 px is about 118/165 DPI.
 
-本地 H 更小图片结果为 5,211,292 字节，第 8 页为 851 × 1100 像素；桌面 S 文件为 5,277,729 字节，第 8 页实际绘制的图片为 1000 × 1294 像素、渐进式 JPEG。两者大小接近，但 S 的页面像素更多。这是值得改进的实际对照；没有据此断言 S 来自参考网站，也没有把不同渲染器的结果当成同输入像素的编码排名。
+Local H Smaller was 5,211,292 bytes; page 8 was 851 × 1100. Desktop S was 5,277,729 bytes; its actually drawn page-8 image was progressive JPEG at 1000 × 1294. Similar size with more pixels identified an improvement opportunity, without claiming S came from the reference site or ranking encoders with different rendered inputs.
 
-## 同输入像素实验
+## Common-input pixel experiment
 
-取 H 第 8 页已有 300 DPI 无损图片结果，缩放至 1000 × 1294，作为所有编码候选共享的 RGB 输入。Rust `jpeg-encoder` 固定版本 0.7.1、质量 60、4:2:0、优化 Huffman。实验文件在忽略的 `tmp/codec-probe/`，不作为产品资源分发。
+H page 8's existing 300 DPI lossless image was resized to 1000 × 1294 as shared RGB input. Rust `jpeg-encoder` 0.7.1 used quality 60, 4:2:0 and optimized Huffman. Files are in ignored `tmp/codec-probe/`, not distributed assets.
 
-| 候选                        | JPEG 字节数 | 相对于共同 RGB 输入的 RMSE |
-| --------------------------- | ----------: | -------------------------: |
-| 当前默认量化、顺序编码      |     135,755 |                      5.808 |
-| 默认量化、该库渐进编码      |     148,394 |                      5.808 |
-| Robidoux 量化、顺序编码     |     123,606 |                      6.245 |
-| Robidoux 量化、该库渐进编码 |     135,825 |                      6.245 |
+| Candidate                                  | JPEG bytes | RMSE vs common RGB input |
+| ------------------------------------------ | ---------: | -----------------------: |
+| Default quantization, sequential           |    135,755 |                    5.808 |
+| Default quantization, library progressive  |    148,394 |                    5.808 |
+| Robidoux quantization, sequential          |    123,606 |                    6.245 |
+| Robidoux quantization, library progressive |    135,825 |                    6.245 |
 
-简单启用该库的渐进编码，在这个样本中增加约 9.3% 的体积，解码像素没有变化。该库主要实现频谱选择，不能把它等同于 MozJPEG 的扫描优化。换量化表虽然能缩小文件，也改变了误差分布；RMSE 不等于人眼感知或小字可读性，不能单靠这一指标选用。
+Simply enabling this library's progressive mode grew this sample about 9.3% without changing decoded pixels. Its mainly spectral-selection implementation is not equivalent to MozJPEG scan optimization. Quantization changes size and error distribution; RMSE alone cannot establish perceptual quality or small-text readability.
 
-最初这组实验没有 MozJPEG。随后在共同 RGB 输入上补测，MozJPEG 0.10.13 / mozjpeg-sys 2.2.3、默认量化、渐进扫描优化、Trellis、4:2:0：质量 60 为 97,724 字节、RMSE 8.512；质量 85 为 159,134 字节、RMSE 4.828。它与旧质量 72 的体积接近，误差也接近；相同质量数字下虽然更小，误差却不同。不能把同数字下的缩小率宣传为同画质收益。
+MozJPEG was added to the same-input experiment later: MozJPEG 0.10.13 / mozjpeg-sys 2.2.3, default quantization, progressive scan optimization, Trellis and 4:2:0. Quality 60 produced 97,724 bytes/RMSE 8.512; quality 85 produced 159,134 bytes/RMSE 4.828, similar in size/error to the older quality 72. Equal quality numbers yield different errors, so their size reductions are not same-quality gains.
 
-## 0.1.2 已实施
+## Implemented in 0.1.2
 
-- 使用静态链接的 MozJPEG，Rust 负责参数验证、错误捕获、PDF 处理和文件保护。关闭可选汇编 SIMD，构建只需现有 C 编译器；worker 未动态依赖 JPEG 库。
-- 图片模式更小档宽 1000 px / 质量 60，均衡档宽 1400 px / 质量 72；高度按页面比例计算。CLI 显式 `--dpi` 继续覆盖默认像素宽度。清晰档仍为 300 DPI 的无损像素编码。
-- 有损页在既有像素及单流预算允许时先按 2 倍尺寸渲染，再用 Lanczos3 缩到最终尺寸。预算不足时直接渲染，最终尺寸不变。
-- 完全灰度页合并相同 RGB 通道；完全灰度或最多 256 种 RGB 颜色的页面比较 JPEG 与无损 Flate，包含 None / Sub / Up 行预测候选。没有自动去掉颜色、二值化或调色板量化；每页仍只有一张图。
-- MozJPEG 的扫描配置 API 会重置默认参数，已在质量之前调用，并增加质量值确实影响体积和误差的回归测试。
+- Statically linked MozJPEG; Rust validates parameters, catches errors, handles PDFs and protects files. Optional assembly SIMD is disabled, requiring only the existing C compiler; the worker has no dynamic JPEG dependency.
+- Image Smaller: 1000 px/quality 60; Balanced: 1400 px/quality 72, proportional height. Explicit CLI `--dpi` overrides default width. High quality stays 300 DPI/lossless pixels.
+- Lossy pages render at 2× then Lanczos3 downsample when existing pixel/stream budgets permit; otherwise render directly at unchanged final dimensions.
+- Exactly grayscale pages collapse identical RGB channels. Grayscale or at-most-256-color pages compare JPEG and lossless Flate with None/Sub/Up predictors. No automatic color removal, thresholding or palette quantization; one image per page remains.
+- MozJPEG scan configuration resets defaults, so it now runs before quality settings. Regression tests verify that quality actually changes bytes/error.
 
-真实 H 的图片更小结果为 5,388,392 字节、1000 × 1294；旧结果为 5,211,292 字节、851 × 1100。大小增加约 3.4%，页面像素增加约 38.2%。新版均衡结果为 9,974,565 字节、1400 × 1812；旧结果为 23,388,194 字节、1701 × 2200。这个均衡档比较同时改变了尺寸和编码质量，不能当作同画质算法排名。完整回归与实际限制见 [VALIDATION.md](VALIDATION.md)。
+Real H image Smaller became 5,388,392 bytes at 1000 × 1294 versus 5,211,292 at 851 × 1100: about 3.4% more bytes and 38.2% more pixels. Balanced became 9,974,565 at 1400 × 1812 versus 23,388,194 at 1701 × 2200. Balanced changed both dimensions and encoding quality, so this is not a same-quality algorithm ranking. See [VALIDATION.md](VALIDATION.md) for complete regressions and limits.
 
-## 后续评估
+## Further evaluation
 
-1. 保持共同的最终像素尺寸，先建立文字、小字号彩字、细线图、照片和扫描件的编码基准。质量数值不是跨编码器的通用画质单位；需要同时比较体积、解码误差、局部文字清晰度和耗时。
-2. 在已接入 MozJPEG 的基础上，评估不同量化、色度采样和扫描参数对小字彩边、细线的影响。保持版本锁定；升级时同步本体许可文件。Rust 继续负责 PDF 处理，MozJPEG 本体是 C。
-3. 继续完善已实现的无损灰度判断与 Flate / JPEG 选择，评估混合文字与照片页面的策略。必要时比较无损索引色，避免自动二值化丢掉淡色印章、灰色细线或浅色文字。
-4. 灰度、二值化与调色板量化会改变页面颜色，作为明确的高级选项提供。保留彩色仍为默认。像素尺寸和编码质量分开控制，并在预览中显示最终页面尺寸。
-5. 对本来已是整页图片的 PDF，评估避免无意义放大和重复压缩的安全路径。当前已从渲染像素直接编码，无 JPEG 中间文件。
-6. 扩展每页一图、页序 / 尺寸 / 旋转、字体 / 图片、取消及资源限制回归，完成 Windows 与 macOS Intel 的实机验证。保留原始内容模式继续保留文字和矢量。
+1. Fix final dimensions and benchmark text, small colored text, fine lines, photos and scans. Quality numbers are not universal across encoders; compare size, decoded error, local readability and time.
+2. Evaluate MozJPEG quantization, chroma and scan parameters for colored small-text edges/fine lines. Keep versions pinned and update licenses on upgrades. Rust handles PDFs; MozJPEG itself is C.
+3. Improve exact grayscale and Flate/JPEG selection for mixed text/photos; consider lossless indexed color without thresholding away pale stamps, gray lines or light text.
+4. Grayscale, thresholding and palette quantization alter colors and require explicit advanced options. Color remains default; control dimensions separately from quality and show final dimensions in preview.
+5. Study safe avoidance of needless upscaling/recompression for existing full-page images. Current rendering already encodes pixels directly without intermediate JPEGs.
+6. Extend one-image-per-page, ordering/dimensions/rotation, font/image, cancellation and budget regressions, then test Windows/macOS Intel devices. Preserve mode continues retaining text/vectors.
 
-验收依据为相同尺寸下的画质与体积，以及相近体积下的小字可读性。降低 DPI 或质量本身不计为编码算法改进。
+Acceptance compares quality/size at equal dimensions and small-text readability at similar sizes. Lowering DPI or quality alone is not an encoding improvement.

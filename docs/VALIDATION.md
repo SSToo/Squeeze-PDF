@@ -1,458 +1,470 @@
-# 验证记录
+# Validation record
 
-## 0.1.24：透明 Logo 更新
+This is a historical record of the checks performed for each version. Platform support, repository visibility and outstanding work below describe the corresponding validation date; see the [README](../README.md) for current product behavior. Public document references use anonymous identifiers.
 
-日期：2026-10-11，macOS arm64。替换为用户重新提供的透明 PNG，重新生成应用图标和 favicon。前端浅色 / 深色显示与生产构建检查通过；包内图标、版本、许可材料、严格 ad-hoc 签名及只读挂载后的文件哈希核对通过。DMG SHA-256 `99ba2cc196984357412227d130f3df60c81683d644eda4d00c72482674786aaa`。未修改引擎源码或依赖版本，未重跑引擎回归 / 真实桌面任务；Windows / Intel 新包及正式签名公证本轮未验收。详情见 [Logo 更新记录](LOGO-0.1.24.md)。
+## 0.1.25: signed update checks
 
-## 0.1.23：Apache-2.0 与 Logo 配色
+Date: 2026-10-11. Release builds check the stable GitHub feed after startup and daily, with a manual header control. Detection does not install automatically: users choose installation/restart, and active file tasks prevent it. Update downloads require signature verification with an authenticated matching app version. PDF processing remains local.
 
-日期：2026-10-11，macOS arm64。按用户选择将自有代码授权为 Apache-2.0，项目许可 / 署名随包分发；采用用户提供的红色 Logo 生成应用图标，浅色 / 深色主题点缀同步调整。详情见 [开源准备记录](OPEN-SOURCE.md)。
+- Local TypeScript/production build, updater tests (10), release preparation/publishing tests (16), i18n tests (five), rendering checks, license tests (11), Rust workspace tests and strict clippy/fmt passed. Notices covered 411 dependencies/assets. Only the updater and release feed use the network; PDFs are not uploaded.
+- Native macOS arm64 checks covered manual checking and retryable feed failure. The frontend dialog was separately exercised with a simulated version for themes, German text, task blocking, progress, failure retry and focus restoration. Simulated UI checks are not evidence of a real installed upgrade.
+- [Three-platform CI](https://github.com/SSToo/Squeeze-PDF/actions/runs/38138512707) passed for Windows x64 and macOS arm64/Intel, including tests and signed installer/update generation.
+- [Release preparation rehearsal](https://github.com/SSToo/Squeeze-PDF/actions/runs/38140288073) passed against those actual artifacts. It verified all three update signatures and their bound version, prepared three installers, two macOS update archives, three signatures, `latest.json` and `SHA256SUMS.txt`, and uploaded the ten files as `release-preview`. This did not publish a GitHub Release.
+- Local macOS packaging and strict ad-hoc signature checks passed. DMG: 20,013,390 bytes, SHA-256 `ba0c28bce7db381e4875647550a367c9bdff0fdfa373e6f1f391627c4ca7bd33`. Update archive: 19,086,704 bytes, SHA-256 `c85bfac17ed26dd1a2508b9415198b7c90be0330316ce870d856083de89f9840`. Its version-bound signature verified against the configured public key.
+- No 0.1.25 release tag was published during these checks. A live cross-version installation/relaunch was not tested because a stable update manifest was not yet published. Versions 0.1.24 and earlier require one manual installation of an updater-capable release. Windows/Intel device installation acceptance and production OS code signing/notarization remain separate from successful CI and updater signing.
 
-- 十项许可回归、TypeScript、五项八语言回归、前端 PDF.js 渲染 / 表单批注准备检查，以及 Rust 格式和相关脚本语法检查通过。
-- 本地前端检查两种模式、浅色 / 深色、中文 / 德语，在默认与最小桌面窗口尺寸下布局正常；Logo 正常加载，无横向溢出。没有以浏览器检查替代 Tauri 原生压缩任务验收。
-- App / worker 严格 ad-hoc 签名、DMG 校验、只读挂载后的许可 / 源码 / 图标 / 程序哈希检查通过。包内 worker 的 38 个组合与上一版已验收结果逐字节相同，输入哈希保持；本次未改引擎源码或依赖版本，未重跑 141 项 Rust 测试或全部 488 个组合。
-- DMG SHA-256 `ddb958178af4381e7059ebb31f50c287d2ee42cb4648138ab71b2724525516c1`。Windows / Intel 新包、真实桌面连续任务、正式签名公证尚未完成。GitHub 可见性保持 Private；授权及品牌改动与 0.1.24 一并提交。
+## 0.1.24: transparent logo refresh
 
-## 0.1.22：许可与源码分发材料
+Date: 2026-10-11, macOS arm64. Replaced the transparent PNG, regenerated app icons/favicon, and checked light/dark rendering and the production build. Bundled icons, versions, license materials, strict ad-hoc signatures and read-only-mounted file hashes passed. DMG SHA-256: `99ba2cc196984357412227d130f3df60c81683d644eda4d00c72482674786aaa`. Engine code/dependency versions were unchanged; engine regressions and real desktop tasks were not rerun. New Windows/Intel packages and production signing/notarization were not accepted in this round. See the [logo record](LOGO-0.1.24.md).
 
-日期：2026-10-10，macOS arm64。补齐 Liberation 字体完整源码 / 实际字体可编辑源码、重建说明、QuickJS 版权和许可声明；为五个 MPL 依赖的 71 个源码文件增加完整性校验。获取说明与材料全部随安装包分发，Windows / macOS CI 加入许可检查。详情见 [许可补齐记录](LICENSING-0.1.22.md)。
+## 0.1.23: Apache-2.0 and logo colors
 
-- 七项许可回归、TypeScript、相关脚本格式 / 语法及差异检查通过。四款字体由随包源码成功重建，字形顺序、轮廓、字宽、提示和布局等 18 个表语义逐款核对相同；不承诺重建二进制逐字节相同，产品字体原字节保持。
-- 实际挂载 0.1.22 DMG，核对完整许可、源码归档、说明和 MPL 文件；两个可执行文件与 App 哈希相同。App / worker 严格 ad-hoc 签名和 DMG 校验通过，DMG SHA-256 `e05314b96046ea1d73bfaf94fdcfb6969f7e2478b11de4583b242d87948ff0b7`。
-- 包内 worker 对八类样本的 38 个组合输出与上一版已验收结果逐字节相同，源文件哈希保持。引擎代码与依赖版本未变化；本轮未重跑 141 项 Rust 测试及全部 488 个组合。Windows / Intel 新包、正式签名公证及真实桌面连续任务完整验收未完成。
+Date: 2026-10-11, macOS arm64. Original code adopted Apache-2.0 at the user's choice, with bundled project license/notices. The supplied red logo generated app icons, with corresponding light/dark accents. See the [open-source record](OPEN-SOURCE.md).
 
-## 0.1.21：大图、资源、CMYK、字体与桌面候选
+- Ten license regressions, TypeScript, five eight-language regressions, frontend PDF.js rendering/form-and-annotation preparation, Rust formatting and relevant script syntax checks passed.
+- Local frontend checks covered both modes/themes and Chinese/German at normal/minimum desktop dimensions. The logo loaded without horizontal overflow. Browser checks did not replace native Tauri compression acceptance.
+- App/worker strict ad-hoc signatures, DMG verification and mounted license/source/icon/executable hashes passed. The bundled worker's 38 combinations were byte-identical to the previous accepted version, with unchanged inputs. No engine/dependency changes; 141 Rust tests and all 488 combinations were not rerun.
+- DMG SHA-256: `ddb958178af4381e7059ebb31f50c287d2ee42cb4648138ab71b2724525516c1`. New Windows/Intel packages, consecutive real desktop tasks and production signing/notarization remained outstanding. GitHub visibility was Private at the time; licensing/branding were committed with 0.1.24.
 
-日期：2026-10-10，macOS arm64。实现审核剩余步骤 3–8，细节和边界见 [验证记录](VALIDATION.md)。**实现已补齐，真实桌面连续任务的完整验收未完成**：本机锁屏暂停 WKWebView 回调，Windows / Intel 也尚未实机验证。
+## 0.1.22: licenses and source distribution
 
-- 冻结最终 0.1.20 对照，80 类 / 488 对完整文件；63 对进一步缩小、425 对不变，无体积退步。新增收益均为保留模式，其中保真 14 对。原有 396 个新输出逐字节相同，继承上一轮验证；新增 92 个结果的 104 页 / 档位组合由三种阅读器独立检查。
-- 严格无损的 26 个新增页面组合在三个阅读器均与源像素相同，保真对源误差不增加；六个透明图均衡 / 更小组合明确属于有损降采样。FontTools 独立核对 264 次字形 / 24 次复合字形及提示、字宽和 ToUnicode。
-- 超采样采用更小完整文件与双固定参考的整页 / 边缘误差门槛；已实际拒绝一个略小但增加细字误差的候选。分块、截止、文件预算和取消有单独回归。
-- 最终完整 workspace 141 项 Rust 测试、严格 clippy / fmt、TypeScript、八语言与前端渲染检查通过；包内 worker 重跑全部 488 个组合，与已验收输出逐字节相同，DMG 内主程序 / worker 哈希与 App 相同。安装包校验值在第九轮文末交付记录。真实 Tauri 连续任务 / 取消重试没有通过记录，不能以 QA 适配器或单元测试代替；解锁后可运行 `node scripts/desktop-raster-native.mjs tmp/round9-remaining/native-retry` 复验。
+Date: 2026-10-10, macOS arm64. Completed Liberation upstream/actual editable font sources, rebuild instructions and QuickJS copyright/license notices; added integrity checks for 71 source files across five MPL dependencies. Materials/instructions are bundled, with license checks in Windows/macOS CI. See the [licensing record](LICENSING-0.1.22.md).
 
-## 0.1.20：前置图片入口、精确 RGB 与统一身份保护
+- Seven license regressions, TypeScript, relevant script formatting/syntax and diff checks passed. Four fonts rebuilt from bundled sources, with matching glyph order, outlines, widths, hints and 18 table semantics per font. Byte-identical rebuilds are not promised; production font bytes stayed unchanged.
+- Actually mounted the 0.1.22 DMG and verified licenses, archives, instructions and MPL files. Both executable hashes matched the App. Strict ad-hoc signatures and DMG verification passed. DMG SHA-256: `e05314b96046ea1d73bfaf94fdcfb6969f7e2478b11de4583b242d87948ff0b7`.
+- The bundled worker's 38 combinations across eight sample classes matched accepted previous outputs byte for byte; source hashes were unchanged. With no engine/dependency changes, 141 Rust tests and all 488 combinations were not rerun. New Windows/Intel packages, production signing/notarization and full consecutive-desktop-task acceptance remained outstanding.
 
-日期：2026-10-09，macOS arm64。实施 0.1.19 审核的步骤 0 / 1 / 2，范围、预算与数据见 [验证记录](VALIDATION.md)。新增受限图片表示规范化、超过 256 色的内容探测 / 精确 RGB Flate 候选和共同身份保护；两个模式比较完整文件，保真分辨率、JPEG / DPI 参数及已有矢量误差预算保持。
+## 0.1.21: large images, resources, CMYK, fonts and desktop candidates
 
-- 57 类语料、396 对完整文件比较：49 对更小（保留 44、CLI 图片 5），其余相同；396 个新结果实际执行，冻结对照包含前轮已执行并核对哈希的记录。没有把此收益外推成所有 PDF 或照片的压缩率。
-- PDF.js 独立核对全部 1,152 个页面 / 档位组合，文字位置、严格无损像素检查通过且无警告；原生 WKWebView 的实际生产渲染函数另验收 24 例 / 51 页，5 例更小、19 例完整字节相同。图片变化页面的独立解码样本等于实际暂存输入，其余页面编码相同。
-- Poppler / CoreGraphics 各核对全部 1,152 页，两者严格无损的 165 个页面组合均与源像素相同；保真新结果对源的 RMSE 不高于基线。10 个均衡 / 更小组合因解锁原先未处理的包装图片而产生选定档位的有损变化。CLI 图片五个变化页面保留编码前固定 RGB 全样本，Poppler 四个 / CoreGraphics 一个组合的对源 RMSE 仍可能更高；完整数据与口径见第八轮记录，未宣称各阅读器或人眼画质普遍更好。
-- 16 次独立反例校验确认 MCR / Stm 与不同表单 AP 的身份关系。正确性修复与旧版错误共享结果的体积不混算，不把错误结果当作新版的体积上限。
-- 最终工作区 121 项不同 Rust 测试、严格 clippy / fmt、TypeScript、八语言及前端渲染 / 表单批注准备检查通过。最终包内 worker 重新处理全部 396 个组合，与验收结果逐字节相同，原件哈希不变。
-- macOS arm64 App / worker 为 0.1.20，严格 ad-hoc 签名与 DMG 校验通过；DMG SHA-256 `5617c46ff5594096f0f5cb9f033d19081a12db60e1591159d5c5dfba54a73cbe`。Windows / Intel 本轮未实机验收，正式签名与公证未完成。桌面没有原先 测试文档 A / 测试文档 B 原件，未作新的 Acrobat 对照。
+Date: 2026-10-10, macOS arm64. Implemented review steps 3–8. **Implementation was completed, but full consecutive real desktop-task acceptance was not:** the locked Mac paused WKWebView callbacks, and Windows/Intel device tests were outstanding.
 
-## 0.1.19：编码链、短内容流与完整回退
+- Frozen final 0.1.20 baseline: 80 classes / 488 complete-file pairs; 63 smaller, 425 unchanged, no size regression. All new gains were preserve mode, including 14 Fidelity pairs. The existing 396 new outputs stayed byte-identical and inherited previous validation. Three independent readers checked 104 page/preset combinations across 92 additional results.
+- All 26 additional strict-lossless page combinations matched source pixels in three readers; Fidelity error against source did not increase. Six transparent-image Balanced/Smaller combinations explicitly use lossy downsampling. FontTools independently checked 264 glyphs, 24 composites, hints, widths and ToUnicode.
+- Supersampling requires smaller complete files and whole-page/edge error gates against two fixed references. An actual slightly smaller candidate with worse fine-text error was rejected. Chunking, deadlines, file budgets and cancellation have separate regressions.
+- Final full-workspace 141 Rust tests, strict clippy/fmt, TypeScript, eight-language and frontend rendering checks passed. The packaged worker reran all 488 combinations byte-identically to accepted outputs. DMG executables matched the App. The 0.1.21 DMG hash is recorded in the [licensing record](LICENSING-0.1.22.md). No passing real Tauri consecutive-task/cancellation-retry record exists; QA adapters/unit tests cannot replace it. After unlocking, rerun `node scripts/desktop-raster-native.mjs tmp/round9-remaining/native-retry`.
 
-第一批实施范围、预算与完整数字见 [验证记录](VALIDATION.md)。支持严格的可逆过滤器链与图片文字包装剥离、私有短 Contents 候选、标签 /Stm 保护及完整文件回退；既有画质参数保持。47 类通用样本、326 对完整文件比较，32 对更小，其余不变；三个阅读器内的新旧像素 / 文字对照通过。原生 WKWebView 的生产渲染函数独立基线 18 例通过，未验证真实界面连续任务或 Windows WebView2。110 项不同 Rust 回归覆盖，Mac arm64 0.1.19 包已构建并校验，包内字节核对结果见报告。
+## 0.1.20: earlier image inputs, exact RGB and unified identity protection
 
-## 0.1.17：取消默认文件大小上限
+Date: 2026-10-09, macOS arm64. Implemented 0.1.19 review steps 0/1/2: restricted image-representation normalization, content probes/exact RGB Flate above 256 colors and shared identity protection. Both modes compare complete files; Fidelity resolution, JPEG/DPI settings and vector-error budgets remain unchanged.
 
-日期：2026-10-08，Windows 11 x64。
+- 57 sample classes / 396 complete-file pairs: 49 smaller (44 preserve, five CLI image), all others unchanged. All 396 new outputs were executed; frozen baselines include previously executed, hash-checked records. These gains are not extrapolated to every PDF/photo.
+- PDF.js checked every one of 1,152 page/preset combinations independently. Text positions and strict-lossless pixels passed without warnings. The production render function in native WKWebView additionally passed 24 cases / 51 pages: five smaller, 19 complete-byte-identical. Changed image-page decoded samples matched actual staged input; other page encodings matched.
+- Poppler/CoreGraphics each checked all 1,152 pages. Their 165 strict-lossless combinations matched source pixels; new Fidelity RMSE did not exceed baseline. Ten Balanced/Smaller combinations gained selected-preset lossy changes by unlocking previously untreated wrappers. Five changed CLI image pages retained every fixed pre-encoding RGB sample, though source RMSE could still be higher in four Poppler/one CoreGraphics combinations. No universal reader/perceptual quality improvement was claimed.
+- Sixteen independent counterexample checks confirmed MCR/Stm and distinct form AP identities. Correctness fixes were not counted against smaller but incorrectly shared old outputs.
+- Final workspace: 121 distinct Rust tests, strict clippy/fmt, TypeScript, eight-language and frontend rendering/form-and-annotation preparation passed. The final bundled worker reran all 396 combinations byte-identically, with unchanged originals.
+- macOS arm64 App/worker 0.1.20, strict ad-hoc signatures and DMG verification passed. DMG SHA-256: `5617c46ff5594096f0f5cb9f033d19081a12db60e1591159d5c5dfba54a73cbe`. Windows/Intel devices and production signing/notarization were untested. Original Documents A/B were unavailable on the desktop; no new Acrobat comparison was made.
 
-- 引擎默认不限制 PDF 文件字节数，桌面预览与 PDF.js 整页渲染共用的读取入口同步取消 256 MiB 上限；更新八种语言的导入提示。API 调用方仍可显式设置文件上限。
-- 新增 257 MiB 单页 PDF 回归：旧逻辑复现“文件不能超过 256 MB”，修复后预检、保留模式与 CLI 图片模式通过。样本用 PDF 空白填充跨过原上限，用于大小边界验证，不代表真实大文档的压缩率或性能。
-- 97 项 Rust 测试、TypeScript、八语言、PDF.js 渲染检查与 Rust 格式检查通过。安装后的 0.1.17 worker 对 269,484,486 字节样本完成两种模式导出，原件 SHA-256 不变。
-- Windows x64 NSIS 安装包已更新安装，应用与 worker 均为 0.1.17。新版桌面成功识别 314.94 MiB、63 页的真实 PDF；未以此声称该真实文件已经完成压缩或逐页视觉验证。
+## 0.1.19: chains, short content streams and complete fallback
 
-## 0.1.16：原始颜色样本与文件布局
+Added strict reversible filter chains, text-wrapper removal for images, private short Contents candidates, tag /Stm protection and complete-file fallback without changing quality parameters. Across 47 sample classes / 326 complete-file pairs, 32 became smaller and all others stayed unchanged. Three-reader before/after pixel/text comparisons passed. An independent 18-case production-render baseline passed in native WKWebView; real consecutive UI tasks and Windows WebView2 were untested. Coverage included 110 distinct Rust regressions. The macOS arm64 0.1.19 package was built/verified, including bundled-byte checks.
 
-实现范围、限制及完整数据见 [验证记录](VALIDATION.md)。新增受限 raw／单层 Flate 的原始分量编码、明确默认 Decode 识别、完整文件编号／布局候选；严格 Lossless 允许精确图片优化。保真原像素尺寸、JPEG／DPI 与矢量误差预算保持，外观共享图片原编码受保护。
+## 0.1.17: removing the default file-size cap
 
-- 30 类主语料 × 七种模式／档位组合，共 210 对新旧比较，67 组更小，全部不退步；另增加 DefaultRGB → ICCBased 非默认 Range 样本七对，合计 31 类、217 对。原件哈希不变。主语料旧记录中 119 条复用已验证基线，并非所有新旧记录均为本轮新执行。
-- Poppler／CoreGraphics 各检查 217 个新结果；主语料 60 个保真／严格无损结果与源像素相同，90 个图片结果与基线像素相同，额外默认颜色样本相应检查通过。PDF.js 独立核对主语料 60 个及额外两个结果的像素、文字和位置。页序／框及图片模式每页单图检查通过。最初的 Matte 自建输入尺寸错误已修正、隔离旧数据并完整重测。
-- 全工作区 95 项 Rust 回归通过；最终默认颜色保护新增一项端到端测试，随后 31 项核心单元与四项原生图像回归通过，合计覆盖 96 项不同测试。工作区严格 clippy、fmt、TypeScript、八语言和前端 PDF.js 渲染／表单批注准备检查通过。
-- 两份真实文件三档各减少 23,500 B／102,103 B。独立核对六份结果的完整可达对象图及原编码流，所有页框／裁剪／旋转相同；两份保真首／中／末页及均衡／更小首页共 10 页通过三阅读器逐像素对照。没有声称所有真实页或所有 PDF 已逐像素验证，也没有 Acrobat 新对照。
-- 最终 macOS arm64 包内 worker 的 210 份主语料结果及两份真实保真结果与开发输出逐字节相同；额外七对默认颜色样本直接使用最终包内 worker。App／worker 版本 0.1.16、严格 ad-hoc 签名与 DMG 校验通过。DMG SHA-256 `1491e3412e730a0c34b97decb8e6372f19d99ec3c81d175240c07299256aa0fd`。原生界面操作、Windows／Intel 实机与正式签名公证未验证。
+Date: 2026-10-08, Windows 11 x64.
 
-## 0.1.15：通用资源与特殊图片输入
+- The engine no longer limits PDF bytes by default. The shared desktop preview/PDF.js read entry also removed its 256 MiB cap; import messages were updated in eight languages. API callers may still set explicit caps.
+- Added a 257 MiB one-page regression reproducing the old “file cannot exceed 256 MB” failure. Preflight, preserve and CLI image mode passed after the fix. PDF whitespace pads the boundary sample; its ratio/performance does not represent real large documents.
+- 97 Rust tests, TypeScript, eight-language, PDF.js rendering and Rust formatting passed. The installed 0.1.17 worker exported both modes from the 269,484,486-byte sample without changing source SHA-256.
+- Updated/installed Windows x64 NSIS; App/worker were 0.1.17. The desktop recognized a real 314.94 MiB, 63-page PDF; this did not establish completed compression or page-by-page visual validation of that file.
 
-范围和可复测数据见 [验证记录](VALIDATION.md)。默认增加六类资源表的受限清理、等价资源子图共享、Indexed / G4 / CMYK 输入和有界 Zopfli；保护交互外观的未来字体与原始图片编码。保真图片尺寸、JPEG / DPI 和矢量误差预算保持。
+## 0.1.16: raw color samples and file layout
 
-- 17 类自建语料，119 种两模式 / 各档组合，238 次新旧处理成功，完整文件均不退步。最终包内 worker 再处理 119 种组合通过；115 份与开发 PDF 字节相同，默认颜色保护的 4 个保留结果重新渲染。
-- Poppler / CoreGraphics 各检查 119 个新结果，保真与严格无损 34 页像素等于源样本，图片模式 51 页像素等于基线；PDF.js 独立核对 34 页像素、文字与位置。CoreGraphics 已显式设置 200 DPI 并复查，早期页适配画布记录不能作为实际 200 DPI 质量证明。
-- 88 项不同 Rust 测试、工作区严格 clippy / fmt、TypeScript、八语言和前端渲染检查通过；表单 / 批注准备检查通过。
-- 两份真实 PDF 三档均未退步：测试文档 A 各档减少 9 字节，测试文档 B 各档减少 58,473 字节。PDF.js 的 11 个保真重点页新旧像素相同；包内两份保真输出字节等于开发结果，原件哈希不变。
-- 最终 macOS arm64 0.1.15 App / worker 严格 ad-hoc 签名与 DMG 校验通过，SHA-256 `bd90a0b0f791cc493c10d09b8b387ae0f22a53d741b5602480026ecb621da236`。原生界面点击、Windows / Intel 实机、正式签名与公证未验证。
+Added restricted raw/single-Flate component encoding, explicit default Decode recognition and complete-file numbering/layout candidates. Strict Lossless gained exact images. Fidelity dimensions, JPEG/DPI/vector budgets stayed unchanged; protected appearance-shared images retained their encoding.
 
-## 0.1.14：第四轮格式实验与 CLI 渲染保护
+- 30 main sample classes × seven mode/preset combinations = 210 pairs; 67 smaller, none larger. Seven extra DefaultRGB → ICCBased nondefault-Range pairs brought totals to 31 classes/217 pairs. Inputs were unchanged. 119 older main-corpus records reused verified baselines rather than being rerun here.
+- Poppler/CoreGraphics each checked 217 new results. Main-corpus 60 Fidelity/Lossless outputs matched source pixels; 90 image outputs matched baseline pixels; extra default-color checks passed. PDF.js independently checked pixels/text/positions for the 60 main results and two extra results. Order/boxes/one-image-per-page passed. An initially incorrect synthetic Matte input size was corrected, old data isolated and tests fully rerun.
+- All 95 workspace Rust regressions passed. After one final default-color end-to-end test, 31 core unit/four native-image tests passed, covering 96 distinct tests in total. Workspace strict clippy/fmt, TypeScript, eight-language and PDF.js rendering/form-and-annotation preparation passed.
+- Each preset of two real files saved 23,500 B / 102,103 B. All six outputs' reachable graphs/original encoded streams were independently checked; every page box/crop/rotation matched. Three readers compared ten pages: first/middle/last of both Fidelity results and first pages of Balanced/Smaller. This is not every real page/every PDF, and there was no new Acrobat comparison.
+- Final macOS arm64 bundled worker produced byte-identical 210 main-corpus results and two real Fidelity results; the seven extra default-color pairs used that worker directly. App/worker 0.1.16, strict ad-hoc signatures and DMG verification passed. SHA-256: `1491e3412e730a0c34b97decb8e6372f19d99ec3c81d175240c07299256aa0fd`. Native UI operations, Windows/Intel devices and production signing/notarization were untested.
 
-Brotli 体积与兼容性实验见 [验证记录](VALIDATION.md)。测试文档 A / 测试文档 B 现有保真结果的匹配变体可再减少 2.75% / 0.69%，但 Poppler、CoreGraphics 与 CLI 原生渲染未通过，未启用产品 Brotli 输出。PDF.js 全部 113 页的像素和提取文字一致；JPEG / G4 对照通过。
+## 0.1.15: general resources and special image inputs
 
-- 发现 hayro 对 Brotli 字体页返回成功却生成空白，新增原生渲染预检拒绝。页面 / 嵌套 Form、单名 / 数组四种组合验证原件不变、不提交输出；桌面几何计划继续接受。11 项 raster 回归及工作区严格 clippy、fmt 通过。
-- 使用实际 PDF.js Brotli 字体页的像素清单，最终包内 worker 输出 1667 × 2223 的独立单图页面；pypdf / Pillow 核对组件 RGB 完全相同且非空白。
-- macOS arm64 App / DMG 构建、磁盘校验及 App / worker 严格 ad-hoc 签名通过，worker 为 0.1.14；DMG SHA-256 `e625dc123e2a037be6c12b45b7398d9c4d445844a2d89e2dc28555e72dd44c6b`。Mac 锁屏，原生应用内操作未验证；Windows / Intel 实机、正式签名公证未验证。
-- 第四轮不改变常规压缩档位或第三轮策略。原始记录位于忽略的 `tmp/round4-brotli/`。
-- 最终包内 worker 从两份用户原件输出保真，与第三轮整份字节相同：测试文档 A 6,966,388 字节，约 23 秒；测试文档 B 40,138,199 字节，约 41 秒。原件哈希不变；Brotli 字体页明确拒绝，未生成文件，JPEG / G4 对照继续通过。
+Restricted cleanup across six resource tables, equivalent subgraphs, Indexed/G4/CMYK inputs and bounded Zopfli entered defaults. Future appearance-font glyphs and original image encoding remained protected. Fidelity dimensions, JPEG/DPI and vector budgets stayed unchanged.
 
-## 0.1.13：第三轮资源与黑白扫描
+- 17 synthetic categories, 119 two-mode/preset combinations: 238 old/new runs succeeded without complete-file regression. The final bundled worker reran 119 combinations; 115 matched development bytes. Four preserve outputs affected by default-color protection were rendered again.
+- Poppler/CoreGraphics each checked 119 new outputs: 34 Fidelity/Lossless pages matched source and 51 image pages matched baseline. PDF.js checked 34 pages' pixels/text/positions. CoreGraphics was explicitly rerun at 200 DPI; earlier fit-to-canvas records do not prove actual 200 DPI quality.
+- 88 distinct Rust tests, strict workspace clippy/fmt, TypeScript, eight-language, frontend rendering and form/annotation preparation passed.
+- Both real PDFs had no regressions across three presets: A saved nine bytes per preset; B 58,473. Eleven important Fidelity pages matched in PDF.js; both packaged Fidelity outputs matched development bytes and source hashes stayed unchanged.
+- Final macOS arm64 0.1.15 App/worker signatures and DMG verification passed. SHA-256: `bd90a0b0f791cc493c10d09b8b387ae0f22a53d741b5602480026ecb621da236`. Native clicks, Windows/Intel devices and production signing/notarization were untested.
 
-完整范围和数字见 [验证记录](VALIDATION.md)。每图片使用分析、交互外观保护、所有者资源清理、精确样本去重与 G4 候选进入默认路径；字体子集与 JPEG2000 留在开发实验。
+## 0.1.14: fourth-round format experiments and CLI rendering protection
 
-- 两份真实文件三档共六个结果与 0.1.12 整份字节相同，重点 11 页 PDF.js 像素相同；原件不变。固定四个编码样本完成新旧两模式三档 48 次压缩与 Poppler 验证。
-- 四类资源样本 24 次对比；普通页面继续采用所选档位，外观共享图片、字段、批注与附件保留。严格 lossless 去重样本 6,580,782 → 820,631 字节；黑白扫描保真 86,334 → 77,974 字节，Poppler / PDF.js 与原件像素相同，CoreGraphics 与旧版 1 位结果相同。
-- 全工作区 77 项不同 Rust 测试（含示例重复共 81 次）通过；最终对象身份修补后 6 项资源回归及全工作区严格 clippy 通过。fmt、TypeScript、八语言与渲染验证通过。
-- macOS arm64 App / DMG 与签名校验通过，内嵌 worker 0.1.13；DMG SHA-256 `83058b6eef0a8cda968aafe65668313432bdaba87b447562d619307e86456178`。Mac 锁屏，原生应用内操作尚未检查；Windows / Intel 实机与正式签名公证未验证。
+Matched Brotli variants of existing A/B Fidelity results saved another 2.75% / 0.69%, but failed Poppler, CoreGraphics and CLI native rendering. Product Brotli output was not enabled. All 113 pages matched pixels/extracted text in PDF.js; JPEG/G4 controls passed.
 
-## 0.1.12：第二轮 Form 精度与 JPEG 实验
+- hayro reported success but rendered a blank Brotli-font page. A new native preflight rejects it. Page/nested-Form × single-name/array combinations verified unchanged originals/no output; desktop geometry planning still accepts these inputs. Eleven raster regressions and strict workspace clippy/fmt passed.
+- Using the actual PDF.js Brotli-font pixel manifest, the final worker produced an independent 1667 × 2223 single-image page; pypdf/Pillow confirmed identical, nonblank RGB components.
+- macOS arm64 App/DMG build, disk verification and strict ad-hoc signatures passed; worker 0.1.14. DMG SHA-256: `e625dc123e2a037be6c12b45b7398d9c4d445844a2d89e2dc28555e72dd44c6b`. The Mac was locked; native interactions, Windows/Intel devices and production signing/notarization were untested.
+- Standard presets/third-round strategies did not change. Raw records: ignored `tmp/round4-brotli/`.
+- The final worker exported both originals in Fidelity with complete bytes identical to round three: A 6,966,388 bytes/~23 seconds; B 40,138,199/~41 seconds. Originals stayed unchanged. Brotli-font input was explicitly rejected without a file; JPEG/G4 controls still passed.
 
-完整结果见 [验证记录](VALIDATION.md)。Form 精度按全部已知调用的累计变换限制；有界 JPEG 缓存保持原编码参数和输出。
+## 0.1.13: third-round resources and monochrome scans
 
-- 两份真实 PDF 三档共六组验证：测试文档 A 每档减少 17,108 字节；测试文档 B 每档减少 10,937,031 字节。图片编码字节、尺寸与颜色语义保持 0.1.11，收益来自 Form 绘制与进一步轮廓复用。
-- 两份保真共 109 页 Poppler 渲染通过，另以 PDF.js 200 DPI 检查 11 页；局部小字与细线检查正常。几何误差预算、未知调用、循环、预算与取消检查通过。
-- 48 次固定样本压缩的 24 对结果与 0.1.11 整份字节相同；两种模式各档检查通过。完整 Rust 回归 69 项不同测试通过，示例重复测试共 73 次；最终安全修补后 20 项核心测试与全工作区严格 clippy 再次通过。
-- 384 组 JPEG / Jpegli 实验没有更小且通过全部局部误差筛选的候选，默认继续 MozJPEG；两份真实文件缓存命中为零，不声称其因此提速。
-- 原生桌面保真批次完成两份原件，与 CLI 文件逐字节相同；双栏预览正常。最终 App / worker 严格 ad-hoc 签名及 DMG 校验通过；0.1.12 DMG SHA-256 为 `7199379c3560e8cd9e228337e49184989b6ea04ade86558454ccf3a72502aa3c`。Windows / macOS Intel 实机与正式公证仍未验证。
-- 原始记录位于忽略的 `tmp/round2-0.1.12/`。
+Per-image usage, appearance protection, owner-resource cleanup, exact-sample sharing and G4 became defaults. Font subsets/JPEG2000 remained development experiments.
 
-## 0.1.11：第一轮图片编码与体积诊断
+- Six real results across two files/three presets matched 0.1.12 bytes; eleven important PDF.js pages matched, with unchanged originals. Four fixed encoding samples completed 48 old/new two-mode/three-preset runs and Poppler checks.
+- Four resource classes/24 comparisons preserved selected-preset ordinary-page optimization, shared appearance images, fields, annotations and attachments. Strict-Lossless sharing sample: 6,580,782 → 820,631 bytes. Monochrome Fidelity: 86,334 → 77,974, matching source pixels in Poppler/PDF.js and previous 1-bit output in CoreGraphics.
+- 77 distinct workspace Rust tests (81 executions including example duplicates) passed. After final identity fixes, six resource regressions and strict workspace clippy passed again; fmt, TypeScript, eight-language and rendering checks passed.
+- macOS arm64 App/DMG/signature checks passed, bundled worker 0.1.13. DMG SHA-256: `83058b6eef0a8cda968aafe65668313432bdaba87b447562d619307e86456178`. Locked Mac prevented native interaction checks; Windows/Intel devices and production signing/notarization were untested.
 
-第一轮实现与完整数字见 [验证记录](VALIDATION.md)。DPI、JPEG 质量和矢量策略保持 0.1.10；保真维持原图片尺寸。
+## 0.1.12: second-round Form precision and JPEG experiments
 
-- 固定新旧 worker 与四种自有样本，完成两种模式 × 三档 × 两版本的 48 次压缩，输入哈希不变；24 对新结果均未变大。Poppler 独立渲染通过，四份保留保真输出与原件像素完全相同；图片输出每页一张独立图片。
-- 用户两份真实 PDF 完成保真 / 均衡 / 更小共六组对比。测试文档 A 每档比旧版减少 11,102 字节，测试文档 B 每档减少 21,079 字节，收益有限。颜色图像编码数据不变，所有非图片业务对象与绘制内容相同；遮罩解码透明度样本相同，保真尺寸与原件相同，两份原件 SHA-256 不变。
-- 两份保真结果共 109 页以 100 DPI 使用 Poppler 渲染，全部页面与 0.1.10 保真渲染逐像素相同。原件到保真的既有有损差异仍存在，没有将该结论写成与原件全页无损。
-- 完整工作区 63 项 Rust 回归通过；随后针对纯色遮罩与缓冲写入运行受影响的 48 项并补充 1 项遮罩测试，合计覆盖 64 项不同 Rust 测试。JPEG 系数 / 量化表 / 采样 / 元数据及解码像素核对、1 / 2 / 4 / 8 位调色板和奇数行宽、五种预测、创建竞争、取消、ICC、交互与附件检查通过。严格 clippy、fmt、TypeScript、5 项多语言测试及 PDF.js 渲染检查通过。
-- 最终 macOS arm64 0.1.11 应用实际导入桌面两份原件并执行保真批次，全部成功；Downloads 的 `_compressed_4.pdf` 与基准输出整份字节相同。测试文档 B 的 PDF.js 原件 / 结果双栏预览加载与画质检查通过；界面保持中文、浅色、保留内容 / 保真及 Downloads。
-- 最终缓冲版再次从 测试文档 B 原件输出，文件字节与第一次 0.1.11 基准完全相同；减少纯色遮罩尝试和写入系统调用。阶段计时受并行构建 / 渲染影响，不给出速度倍数。
-- macOS arm64 App / DMG 构建、磁盘校验、App / worker 严格 ad-hoc 签名检查通过；包内 worker 为 0.1.11，DMG SHA-256 为 `a93950dc02834f7d5e6cf1d9d25df8910b2247b45513bbb33dcd5cc13cee73c6`。Windows / macOS Intel 实机和正式签名公证仍未在本轮验证。
-- 原始报告、对象容器的八组实验、采样诊断与渲染记录位于忽略的 `tmp/round1-0.1.11/`，不随产品分发。
+Form precision uses cumulative transforms across every known call. Bounded JPEG caching retained existing encoding settings/output.
 
-## 0.1.10：保真档启用矢量优化，图片保持原分辨率
+- Six real-file/preset comparisons: A saved 17,108 bytes per preset; B 10,937,031. Image bytes/dimensions/color semantics stayed at 0.1.11; gains came from Form drawing/further outline reuse.
+- All 109 Fidelity pages rendered with Poppler; eleven also checked in PDF.js at 200 DPI. Local text/lines looked correct. Geometry budgets, unknown calls, cycles, budgets and cancellation passed.
+- 48 fixed-sample compressions/24 pairs matched 0.1.11 complete bytes in both modes/all presets. 69 distinct Rust regressions (73 executions with duplicates) passed. After safety fixes, 20 core tests and strict workspace clippy passed again.
+- None of 384 JPEG/Jpegli candidates was smaller while passing all local-error gates; MozJPEG remained default. Neither real file had cache hits, so no caching speedup was claimed.
+- Native desktop Fidelity batch processed both originals byte-identically to CLI; side-by-side preview worked. Final strict App/worker signatures and DMG verification passed. DMG SHA-256: `7199379c3560e8cd9e228337e49184989b6ea04ade86558454ccf3a72502aa3c`. Windows/macOS Intel devices and production notarization remained untested.
+- Raw records: ignored `tmp/round2-0.1.12/`.
 
-日期：2026-10-06，macOS arm64。按照用户要求，桌面保留模式的保真档也启用路径精度优化与重复矢量轮廓复用。图片保留原像素尺寸，受支持图片使用 MozJPEG 质量 95、完整色度采样重编码；候选未变小时保留原编码，透明遮罩仍保留无损像素。保真不再代表整个 PDF 严格无损，八语言说明已同步更新。
+## 0.1.11: first-round image encoding and size diagnostics
 
-- 引擎新增 `fidelity` 档，禁止降采样、目标 DPI 及图片模式组合。桌面保留模式沿用已有设置 ID，调用 worker 时映射为新档并启用两项矢量优化；CLI / API 的旧 `lossless` 仍保持原图编码并跳过两项矢量优化。图片模式的清晰档行为保持。
-- 初步仅开放矢量复用、保持原图片编码与路径精度时，测试文档 A 仍为 69,284,487 字节；测试文档 B 为 172,513,546 字节，其中图片占主要体积。最终采用原分辨率的高质量图片重编码，以及均衡档已有的受限路径精度优化，取得下表结果。
+DPI, JPEG quality and vectors stayed at 0.1.10; Fidelity retained image dimensions.
 
-两份原件与此前测试的 SHA-256 相同，保持只读。软件目前以 MiB 计算、界面标记为 MB；下面同时记录精确字节。
+- Fixed old/new workers and four synthetic samples completed 48 runs (two modes × three presets × two versions) without input changes; no new result among 24 pairs grew. Poppler passed; four preserve Fidelity outputs matched source pixels; image outputs contained one image per page.
+- Six real comparisons: A saved 11,102 bytes per preset, B 21,079, limited gains. Color-image bytes and all non-image business objects/drawing remained unchanged. Decoded mask samples matched; Fidelity dimensions matched originals; both original hashes stayed unchanged.
+- All 109 Fidelity pages rendered at 100 DPI in Poppler and matched 0.1.10 Fidelity pixels. Existing original-to-Fidelity lossy differences remained; this does not imply source losslessness.
+- 63 full-workspace Rust regressions passed; affected 48 plus one mask regression ran after solid-mask/buffered-writing changes, covering 64 distinct tests. Coefficients/quantization/sampling/metadata/pixels, 1-/2-/4-/8-bit palettes/odd widths, five predictors, creation races, cancellation, ICC, interactivity and attachments passed. Strict clippy/fmt, TypeScript, five multilingual tests and PDF.js rendering passed.
+- Final macOS arm64 app imported both desktop originals and completed Fidelity. Downloads `_compressed_4.pdf` outputs matched baseline bytes. Document B's PDF.js original/result preview and quality check passed. UI retained Chinese/light/preserve/Fidelity/Downloads.
+- Final buffered build reprocessed B byte-identically, reducing solid-mask attempts/write syscalls. Concurrent build/render load affected timings, so no speed multiplier was claimed.
+- App/DMG build, disk verification and strict signatures passed; bundled worker 0.1.11. DMG SHA-256: `a93950dc02834f7d5e6cf1d9d25df8910b2247b45513bbb33dcd5cc13cee73c6`. Windows/Intel devices and production signing/notarization were untested.
+- Reports, eight container experiments, sampled diagnostics and renders: ignored `tmp/round1-0.1.11/`, not distributed.
 
-| 原件       |    原件字节 | 0.1.9 旧保真字节 | 0.1.10 新保真字节 |   旧 / 新软件显示 | 新结果相对原件减少 |
-| ---------- | ----------: | ---------------: | ----------------: | ----------------: | -----------------: |
-| 测试文档 A |  81,313,254 |       69,284,487 |         6,994,598 |   66.07 / 6.67 MB |             91.40% |
-| 测试文档 B | 215,135,570 |      199,008,180 |        51,096,309 | 189.79 / 48.73 MB |             76.25% |
+## 0.1.10: Fidelity vector optimization at original image resolution
 
-- 独立解析核对 测试文档 A 的 3,321 个、测试文档 B 的 25,792 个业务对象：全部非图片字典及绘制流与已验证的 0.1.9 均衡结果一致，分别为 1,731 / 24,308 个非图片流。文字、字体、页面几何与矢量绘制保留，复用 88,544 / 119,332 组轮廓，没有整页栅格化。
-- 两份结果中的全部图片、遮罩的 Width / Height、颜色空间及位深与原件一致。部分源图片的原编码比 JPEG 95 候选更小，因此保留源数据；不要求其编码方式与均衡结果一致。
-- 新结果全部 52 + 57 = 109 页经 Poppler 100 DPI 渲染通过。另与原件核对 测试文档 A 第 1、8、52 页、测试文档 B 第 3、8、54 页；六页的原件对比 RGB RMSE 均略低于均衡结果。此抽样指标不代表所有文档的人眼画质排名。人工查看小字、图表、照片与背景正常。
-- 共 59 项 Rust 测试通过，新增保真结合路径精简、轮廓复用与原尺寸高质量图片的回归；覆盖原 RGB / JPEG 输入、可选择文字与原件不变。严格 `lossless` 兼容性最终调整后，五项轮廓复用测试再次通过；全工作区 clippy、cargo fmt、TypeScript、五项八语言检查及格式检查通过。
-- 实际中文浅色桌面版在保留 / 保真下完成两份原件，结果分别为 `Downloads/document-a_compressed_3.pdf` 和 `Downloads/document-b_compressed_3.pdf`，与独立 worker 输出逐字节相同。原有输出没有覆盖，原件 / 结果双栏预览正常；西班牙语保真文案布局检查后恢复中文。
-- macOS arm64 0.1.10 应用与 DMG 构建、磁盘校验、应用 / worker 严格 ad-hoc 签名检查通过；内嵌 worker 为 0.1.10，DMG 校验值记录在包旁。Windows 与 macOS Intel 的实机安装回归仍待完成。
-- 实测报告、独立核对及渲染记录位于忽略的 `tmp/fidelity-0.1.10/`，不随产品分发。图片原分辨率、JPEG 95 和有限坐标精度优化属于高保真策略，不承诺逐像素或几何严格无损，也不承诺所有 PDF 达到这两份样本的压缩率。
+Date: 2026-10-06, macOS arm64. At the user's request, desktop preserve Fidelity enabled path precision/outline reuse. Supported images retained dimensions and used MozJPEG 95/full chroma; original encoding wins when smaller. Transparency masks remain lossless. Fidelity no longer means strict whole-PDF losslessness; eight-language explanations were updated.
 
-## 0.1.9：测试文档 A 同档复测与稳定的资源写入顺序
+- Added engine `fidelity`, rejecting downsampling, target DPI and image-mode combinations. Desktop retains its settings ID but maps to this preset and both vector options. CLI/API `lossless` retained original image encoding and skipped these vector options at this point. Image High quality stayed unchanged.
+- Initially enabling vector reuse alone, with original image encoding/precision, left A at 69,284,487 bytes and B at 172,513,546, dominated by images. Original-resolution high-quality encoding and existing restricted Balanced path precision produced the results below.
 
-日期：2026-10-06，macOS arm64。原件为桌面的 `document-a.pdf`，81,313,254 字节、52 页；与 0.1.4 测试原件 SHA-256 相同。
+Original SHA-256 hashes matched previous tests and stayed read-only. The app calculates MiB labeled MB; exact bytes are included.
 
-- 用户反馈更新后 测试文档 A 的结果增大。相同原件、档位及路径优化参数，对照保留的 0.1.6 worker 与 0.1.8 worker：均衡为 4,136,151 / 4,136,352 字节，更小为 3,034,535 / 3,034,595 字节，本轮仅复现增加 201 / 60 字节。新旧均为复用 88,544 处轮廓，没有增加嵌套 Form 的改写。
-- 独立解析后，两档各 3,321 个业务对象及 1,764 个数据流相同，包含全部 33 个图像 / 遮罩。差异位于 51 个页面的嵌套 XObject 资源字典条目顺序；压缩对象容器的编码大小分别为 177,684 / 177,885 字节，解释均衡档的 201 字节差值。Downloads 中已有的 4,136,404 字节保留结果也与其内容等价；另一个 9,813,647 字节结果为图片模式，不能作同模式比较。
-- 共享轮廓缓存使用随机哈希，过去直接按缓存遍历顺序写入资源。现在按对象号固定新增资源的插入顺序；不改变原资源名称、引用、绘制次序或数据流。此修复消除该处随机序列化差异，不承诺所有算法改动或不同档位都能更小。
+| Original   | Original bytes | 0.1.9 Fidelity | 0.1.10 Fidelity | Old/new app display | Reduction vs original |
+| ---------- | -------------: | -------------: | --------------: | ------------------: | --------------------: |
+| Document A |     81,313,254 |     69,284,487 |       6,994,598 |     66.07 / 6.67 MB |                91.40% |
+| Document B |    215,135,570 |    199,008,180 |      51,096,309 |   189.79 / 48.73 MB |                76.25% |
 
-| 保留档位 | 0.1.6 对照字节 | 0.1.8 复测字节 | 0.1.9 字节 | 软件显示 | 相对原件减少 |
-| -------- | -------------: | -------------: | ---------: | -------: | -----------: |
-| 均衡     |      4,136,151 |      4,136,352 |  4,133,276 |  3.94 MB |       94.92% |
-| 更小     |      3,034,535 |      3,034,595 |  3,031,530 |  2.89 MB |       96.27% |
+- Independently parsed A's 3,321 and B's 25,792 business objects. All non-image dictionaries/drawing matched verified 0.1.9 Balanced results: 1,731 / 24,308 non-image streams. Text, fonts, geometry and vectors remained, with 88,544 / 119,332 reused outline groups and no full-page rasterization.
+- Every image/mask retained source Width/Height, color space and bit depth. Some originals were smaller than JPEG 95 candidates and retained original bytes; encoding need not match Balanced.
+- All 109 pages rendered in Poppler at 100 DPI. Additional source comparisons: A pages 1/8/52 and B 3/8/54. All six RGB RMSE values were slightly below Balanced. Sampling does not rank human quality for all documents. Text, charts, photos and backgrounds looked correct.
+- 59 Rust tests passed, adding Fidelity paths/reuse/original-resolution regressions with RGB/JPEG, selectable text and unchanged originals. After final strict-lossless compatibility adjustment, five outline tests passed again; workspace clippy/fmt, TypeScript, five eight-language checks and formatting passed.
+- Actual Chinese/light desktop preserve/Fidelity processed both files to `Downloads/document-a_compressed_3.pdf` and `Downloads/document-b_compressed_3.pdf`, byte-identical to independent worker outputs. Existing files remained intact and preview worked. Spanish Fidelity layout was checked, then Chinese restored.
+- macOS arm64 0.1.10 App/DMG, disk verification and strict signatures passed; bundled worker 0.1.10, checksum beside the package. Windows/Intel installation regressions remained outstanding.
+- Evidence: ignored `tmp/fidelity-0.1.10/`. Original dimensions, JPEG 95 and bounded coordinate precision are high-fidelity strategies, not strict pixel/geometry losslessness or universal sample-level ratios.
 
-- 两次独立 0.1.9 均衡导出逐字节相同，SHA-256 为 `6d7b7ef6ca8a07300e5be769c11b8f595ebd890f359949d469cf041bd94bc414`。两档与 0.1.8 的全部业务对象、字典值及编码流保持；新增稳定性回归使用八种带孔闭合轮廓、资源名冲突、共享页面和普通链接，多次独立导出比较完整文件字节。移除固定顺序时测试失败，恢复修复后通过。
-- 测试文档 B 的保留 / 均衡仍为 34,577,527 字节、软件显示 32.98 MB；独立核对 25,792 个业务对象与 0.1.8 相同，24,343 个流的编码字节保持，原件未改变。这里改变了 55 个 Form 资源字典的写入顺序，但这些字典不在压缩对象容器内，因此完整文件大小保持。
-- 共 58 项 Rust 测试、全工作区 clippy、cargo fmt、TypeScript 检查通过。macOS arm64 应用 / DMG 构建及磁盘校验、应用 / worker 严格 ad-hoc 签名检查通过，内嵌 worker 版本 0.1.9，DMG 校验值已记录。未改动图片模式、JPEG 参数或路径几何算法。
-- 实际桌面版中文、浅色、保留 / 均衡导出为 `Downloads/document-a_compressed_2.pdf`，4,133,276 字节，与两次 worker 输出逐字节相同；第一页面的原件 / 结果双栏预览正常。原有输出未覆盖，保留用户设置与结果预览。
-- 测试结果及独立核对在忽略的 `tmp/document-a-regression-0.1.9/`。尚未取得用户这次认为明显变大的实际输出路径与具体大小；本轮证据只能解释上述小幅差异，不能据此认定更大增幅也由同一原因造成。
+## 0.1.9: Document A regression and stable resource order
 
-## 0.1.8：嵌套矢量 Form 的轮廓复用
+Date: 2026-10-06, macOS arm64. Desktop `document-a.pdf`: 81,313,254 bytes, 52 pages; same original hash as 0.1.4.
 
-日期：2026-10-06，macOS arm64。本地读取用户指定的 `document-b.pdf`，原文件只读。
+- Investigated reported growth using the same original/preset/path options with retained 0.1.6/0.1.8 workers. Balanced: 4,136,151 / 4,136,352 bytes; Smaller: 3,034,535 / 3,034,595. Reproduced only 201/60 bytes growth. Both reused 88,544 outlines without additional nested-Form rewrites.
+- Each preset's 3,321 business objects/1,764 streams, including all 33 images/masks, matched independently. Differences were nested XObject dictionary entry order on 51 pages. Object-container encoded size 177,684 / 177,885 explains the 201-byte Balanced difference. An existing 4,136,404-byte Downloads preserve result was equivalent; the 9,813,647-byte image result is a different mode.
+- A randomized shared-outline hash cache previously determined insertion order. New resources now insert by object number without changing names/references/drawing/streams. This removes that serialization randomness, not a promise that every future algorithm/preset shrinks files.
 
-### 瓶颈与改动
+| Preserve preset | 0.1.6 baseline | 0.1.8 rerun |     0.1.9 | App display | Reduction vs original |
+| --------------- | -------------: | ----------: | --------: | ----------: | --------------------: |
+| Balanced        |      4,136,151 |   4,136,352 | 4,133,276 |     3.94 MB |                94.92% |
+| Smaller         |      3,034,535 |   3,034,595 | 3,031,530 |     2.89 MB |                96.27% |
 
-- 原件为 215,135,570 字节、57 页、64 张图像，无交互内容。0.1.7 均衡结果为 61,072,161 字节，与用户 Downloads 中已有结果一致；其中图像约 15.31 MB，Form 绘制流约 45.22 MB。旧轮廓复用只覆盖独立页面流，主要转曲文字却位于嵌套 Form 中。
-- 轮廓复用扩展至具备自身资源的 Form。保留其 BBox、Matrix、透明 Group、可选内容及结构元数据；只增加绘制纯色闭合轮廓的子 Form，继续使用精确十进制定点平移，相交控制点范围保持同组，保留空洞和填充规则。
-- 新增 `form_usage`，核对页面及 Form 的调用、颜色空间切换与 q / Q 状态。只有所有已知调用点均为纯色空间时才复用继承颜色的路径；外观、软遮罩、Type3、图案、缺资源的旧式 Form、无法分析及超预算调用保持保守，路径明确设置纯色后才可能处理。渐变填充及裁剪仍保留原坐标。
-- 新资源名避开全部页面及原 Form 的 XObject 名称；资源字典独立复制。计算编码、对象及资源开销后才采用，最多额外两轮重新评估之前因收益不足而跳过的流，利用后续形成的共享缓存；不重复改写已经成功的流。
-- 图片策略与 0.1.7 均衡相同：JPEG 85，保留原尺寸、ICC 和无损透明遮罩。本文件仍不降采样。
+- Two independent 0.1.9 Balanced exports matched bytes: SHA-256 `6d7b7ef6ca8a07300e5be769c11b8f595ebd890f359949d469cf041bd94bc414`. Both presets retained every 0.1.8 business object, dictionary value and encoded stream. Stability tests use eight holed closed outlines, name conflicts, shared pages and ordinary links; repeated complete-file comparisons fail without the fix and pass with it.
+- B preserve/Balanced stayed 34,577,527 bytes / 32.98 MB. All 25,792 objects and 24,343 encoded streams matched 0.1.8, with unchanged source. Resource order changed in 55 Forms, but those dictionaries were outside compressed object containers, so total size stayed identical.
+- 58 Rust tests, workspace clippy/fmt and TypeScript passed. macOS App/DMG, disk verification and strict signatures passed; worker 0.1.9, checksum recorded. Image mode, JPEG parameters and geometry algorithms were unchanged.
+- Actual Chinese/light desktop preserve/Balanced exported `Downloads/document-a_compressed_2.pdf`, 4,133,276 bytes, identical to both worker runs. First-page preview worked, outputs were not overwritten, settings/preview retained.
+- Evidence: ignored `tmp/document-a-regression-0.1.9/`. The user's allegedly much larger output path/size remained unavailable; these findings explain the small reproduced differences only, not a larger unexplained increase.
 
-### 同一文件实测
+## 0.1.8: outline reuse in nested vector Forms
 
-软件目前以 MiB 计算、界面标记为 MB；下表另外给出精确字节，避免与十进制 MB 混淆。
+Date: 2026-10-06, macOS arm64. Read the specified `document-b.pdf` locally, keeping the original read-only.
 
-| 结果              |        字节 | 软件显示大小 | 相对原件减少 |
-| ----------------- | ----------: | -----------: | -----------: |
-| 原件              | 215,135,570 |    205.17 MB |            — |
-| 0.1.7 保留 / 均衡 |  61,072,161 |     58.24 MB |       71.61% |
-| 0.1.8 保留 / 均衡 |  34,577,527 |     32.98 MB |       83.93% |
+### Bottleneck and changes
 
-新增复用 119,332 处绘制；主要收益来自 55 个原 Form 的矢量轮廓优化。没有用整页栅格化或额外降低图片质量取得这一差值。用户描述 Acrobat 约 33M，目前没有该成品及设置，不能据此宣称两者画质一致。
+- Original: 215,135,570 bytes, 57 pages, 64 images, no interactive content. The 0.1.7 Balanced result was 61,072,161 bytes, matching the existing Downloads output: ~15.31 MB images and ~45.22 MB Form drawing. Old reuse covered independent page streams, while most outlined text was in nested Forms.
+- Extended reuse to Forms with their own resources. Retained BBox, Matrix, transparency Group, optional content and structural metadata, adding only child Forms for solid closed outlines. Exact decimal fixed-point translations, grouped intersecting control ranges, holes and fill rules remain.
+- Added `form_usage` for page/Form calls, color-space changes and q/Q. Inherited-color paths reuse only when every known caller uses solid-color spaces. Appearances, masks, Type3, patterns, legacy Forms without resources, unknown/over-budget calls remain conservative; explicit solid-color assignments may enable processing. Gradients/clipping retain coordinates.
+- New resource names avoid every page/original-Form XObject name; dictionaries are copied independently. Adoption includes encoding/object/resource overhead. Up to two extra passes reconsider streams initially lacking savings using later shared-cache entries; successful streams are not rewritten repeatedly.
+- Image settings remain 0.1.7 Balanced: JPEG 85, original dimensions, ICC and lossless masks. This file still is not downsampled.
 
-### 验证
+### Same-file measurements
 
-- 共 58 项 Rust 测试通过；新增嵌套透明组 / 软遮罩、原 Matrix 与 BBox、调用内容数组、资源名称冲突、逐轮廓控制点与空洞比对、继承图案空间不复用、显式纯色仍可复用、调用图中的外观 / Type3 / 软遮罩 / 超预算 / 取消，以及早期流利用后续缓存等回归。
-- 真实文件分两步独立核对 50 + 5 个改写 Form 的填充轮廓，精确十进制坐标展开后相同；页面内容、页面尺寸、文字提取保持。35 个图像 / 遮罩与 ICC 流的编码字节相对 0.1.7 均衡保持。
-- 首轮及最终结果全部 57 页通过 Poppler 100 DPI 渲染；最终结果与旧均衡相比 RGB RMSE 中位数约 0.351、最大约 0.791。第 3、8、54 页另经 PDFium 100 / 300 DPI 对比，RMSE 约 0.019–0.027。真实页面中的文字、照片、透明背景与渐变均可正常阅读。四种透明组组合、软遮罩、斜变换、细直笔画和空洞样本通过 Poppler / PDFium 100 / 300 DPI 对比；逐像素存在渲染器舍入与抗锯齿差异，未承诺无损画质。
-- TypeScript、全工作区 clippy、cargo fmt、真实 PDF.js 渲染失败与表单回归、八语言检查通过。macOS arm64 应用和 DMG 构建、磁盘校验、应用与 worker 的 ad-hoc 签名检查通过，内嵌 worker 为 0.1.8；Windows 与 macOS Intel 的安装回归仍待完成。
-- 实际桌面版以中文、浅色、保留 / 均衡及 Downloads 运行同一原件，显示 32.98 MB、减少 83.9%。已导出到 Downloads 自动编号文件，原有结果未覆盖；25,792 个业务对象的字典及数据流与 worker 测试结果一致。原件 / 结果双栏预览正常，保留用户的中文、浅色、保留 / 均衡及 Downloads 设置。
-- 原件校验保持不变。测试结果与独立核对脚本在忽略的 `tmp/document-b-0.1.8/`，不随产品分发。
+The app computes MiB labeled MB; exact bytes distinguish this from decimal MB.
 
-## 0.1.7：普通超链接误判与图片模式兼容性
+| Result                  |       Bytes | App display | Reduction vs original |
+| ----------------------- | ----------: | ----------: | --------------------: |
+| Original                | 215,135,570 |   205.17 MB |                     — |
+| 0.1.7 preserve/Balanced |  61,072,161 |    58.24 MB |                71.61% |
+| 0.1.8 preserve/Balanced |  34,577,527 |    32.98 MB |                83.93% |
 
-日期：2026-10-06，macOS arm64。只在本地读取用户指定的 `document-c.pdf`，没有上传到网站。
+Added 119,332 reused drawings, mainly across 55 original Forms. No full-page rasterization or further image-quality reduction produced this difference. The user reported Acrobat at about 33M, but neither that output nor its settings was available; equal quality was not established.
 
-### 修复
+### Validation
 
-- 该文件为 240,855,270 字节、54 页，含 12 个普通 Link 批注，没有表单或附件。旧检测将所有非空 Annots 数组视为需要保真处理的交互内容，导致保留模式跳过图片及矢量优化，图片模式直接拒绝。
-- 分开记录交互内容与是否需要保真策略。没有外观流的普通链接允许保留模式进行图片、路径和重复轮廓优化，链接对象、目标及位置保留；表单、带外观的链接、其他批注与附件继续使用保真策略。
-- 桌面图片模式使用 PDF.js ENABLE_STORAGE 绘制可见表单和批注，缺少外观的文本字段从现有字段值生成外观。按照显示可见性处理，隐藏字段不会暴露；可见内容合并到图片，批注弹窗文字不保留。原件预览采用相同的字段准备与绘制设置。
-- Rust 计划记录原批注引用，前端核对 PDF.js 解析结果，并检查应当绘制的批注是否进入绘制指令。缺少可绘制外观的便签 / 附件图标和损坏批注会显示具体页码，阻止导出不完整页面。已有图片 / 字体解码失败检测继续有效。
-- 重建嵌入附件名称树，保留文件数据、文件说明及目录 / 页面关联。CLI 的 hayro 仍不绘制表单和批注外观，因此遇到这些内容明确提示使用桌面模式；普通链接和空表单容器可以处理。
-- 更新全部八种语言的模式说明、附件报告和新错误消息。
+- 58 Rust tests passed. New coverage: nested groups/masks, original Matrix/BBox, caller Contents arrays, name conflicts, exact control points/holes, no reuse under inherited pattern spaces, explicit solid-color reuse, appearance/Type3/mask/budget/cancellation calls and early streams benefiting from later cache entries.
+- Independently checked rewritten fills in 50 + five real Forms; expanded decimal coordinates matched exactly. Page content/dimensions/text extraction stayed unchanged. All 35 image/mask/ICC streams retained 0.1.7 Balanced encoded bytes.
+- Initial/final outputs rendered all 57 pages in Poppler at 100 DPI. Final vs older Balanced median RGB RMSE ~0.351, maximum ~0.791. PDFium checked pages 3/8/54 at 100/300 DPI, RMSE ~0.019–0.027. Text, photos, transparency and gradients were readable. Four group combinations, masks, skew transforms, thin strokes and holes passed Poppler/PDFium at 100/300 DPI. Renderer rounding/antialiasing still causes pixel differences; lossless quality was not promised.
+- TypeScript, workspace clippy/fmt, real PDF.js render-failure/form regressions and eight-language checks passed. macOS App/DMG, disk verification and App/worker ad-hoc signatures passed; worker 0.1.8. Windows/Intel installation regression remained outstanding.
+- Actual Chinese/light desktop preserve/Balanced with Downloads exported the same original, displaying 32.98 MB / 83.9% reduction. Automatic numbering preserved older outputs; 25,792 parsed business objects/dictionaries/streams matched worker results. Preview worked and settings were retained.
+- Original checksum stayed unchanged. Evidence/scripts: ignored `tmp/document-b-0.1.8/`, not distributed.
 
-### 同一份真实文件的结果
+## 0.1.7: ordinary links and image-mode compatibility
 
-以下大小均为字节；均衡保留及均衡图片均实际在 macOS 桌面 release 中完成，更小保留使用同版 worker 测试。
+Date: 2026-10-06, macOS arm64. Read specified `document-c.pdf` locally without uploading.
 
-| 模式 / 档位            |    结果大小 | 相对原件减少 |
-| ---------------------- | ----------: | -----------: |
-| 旧版 0.1.6 保留 / 均衡 | 227,972,661 |        5.35% |
-| 新版保留 / 均衡        |  61,138,039 |       74.62% |
-| 新版保留 / 更小        |  54,537,766 |       77.36% |
-| 新版桌面图片 / 均衡    |  10,874,253 |       95.49% |
+### Fixes
 
-- 桌面图片全流程约 44.9 秒，54 页，每页一张 1400 × 1811 图片，没有字体资源、可选文字或批注对象。保留模式均衡 worker 约 55.1 秒，更小约 30.6 秒；时间随设备及负载变化。
-- 两档保留的 54 页页面几何与页面绘制指令保持，12 个链接的目标及其他属性保持。链接坐标沿用 lopdf 原有单精度读写误差，相对原文件最大约 0.000017 点，与旧版读写结果一致。31 个源透明遮罩去重后为 3 个，独立解码核对全部不同的遮罩像素保持无损。
-- 桌面均衡保留结果与 worker 均衡结果的业务对象、字典及解码数据流等价。本次文档绘制资源复杂，图片使用位置分析不完整，仍禁用降采样，只重编码受支持的颜色图；没有放松遮罩、图案或字体保护来追求体积。
-- 两档保留及桌面图片结果全部 54 页通过 Poppler 100 DPI 渲染，没有渲染错误。抽查第 1、8、50、54 页，保留均衡相对原件 RGB RMSE 约 0.45–0.50，更小约 0.33–0.55；图片模式约 21.83–44.44。该指标不能直接作为人眼画质排名。人工查看文字、图表及参考链接所在页正常。
-- 原件校验保持不变。临时结果及核对记录位于忽略的 `tmp/real-0.1.7/`。
+- Original: 240,855,270 bytes, 54 pages, 12 ordinary Link annotations, no forms/attachments. Treating every nonempty Annots array as fidelity-sensitive disabled preserve image/vectors and rejected image mode.
+- Separated interactive-content presence from fidelity protection. Ordinary links without appearance streams permit image/path/outline optimization while retaining objects, targets and positions. Forms, links with appearances, other annotations and attachments retain conservative protection.
+- Desktop PDF.js ENABLE_STORAGE draws visible forms/annotations and generates missing text-field appearances from current values. Hidden fields are not exposed; visible content is flattened into pixels and annotation popup text omitted. Original preview uses the same preparation/render settings.
+- Rust records annotation references; frontend checks PDF.js results and verifies drawable annotations entered operators. Undrawable note/attachment icons and damaged annotations report page numbers and block incomplete output. Image/font decode checks remain.
+- Rebuilt attachment name trees retain data, descriptions and document/page associations. CLI hayro still cannot draw form/annotation appearances and directs these cases to desktop; ordinary links/empty form containers work.
+- Updated mode descriptions, attachment reporting and errors in all eight languages.
 
-### 回归与打包
+### Same-file results
 
-- Rust 共 52 项测试通过，新增覆盖普通链接不禁用图片优化、链接仍允许矢量复用、CLI 链接与空表单容器、桌面交互页的附件名称树 / 页面关联与附件内容、附件树循环不提交结果。既有取消、原件变化、损坏图片、文件保护等测试继续通过。
-- 真实 PDF.js 像素测试覆盖既有表单外观、缺外观字段值、复选框状态、非打印可见高亮、批注独立画布外观、隐藏字段、批注解析缺失及损坏外观拒绝导出；已有缺图和字体缓存回归通过。
-- 实际桌面批次中，带表单、高亮和中文命名附件的样本成功导出，附件内容字节一致，无 AcroForm 或页面 Annots。HTML 便签图标与损坏批注两个负面样本明确显示页码，完成 / 失败计数为 1 / 2，未产生结果文件或残留像素目录。独立 Poppler 渲染及人工检查字段值、复选框状态、高亮和隐藏区域正常。
-- TypeScript、Prettier、cargo fmt、全工作区 clippy 及八语言回归通过。macOS arm64 应用 / DMG 构建及磁盘校验通过。最终应用保持原语言、浅色、图片均衡设置，输出目录恢复 Downloads，清理测试队列。Windows 和 macOS Intel 的实机验证仍待完成。
+Bytes below. Balanced preserve/image ran in the actual macOS release app; Smaller preserve used the same-version worker.
 
-## 0.1.6：精简主界面
+| Mode/preset                 | Output bytes | Reduction vs original |
+| --------------------------- | -----------: | --------------------: |
+| Old 0.1.6 preserve/Balanced |  227,972,661 |                 5.35% |
+| New preserve/Balanced       |   61,138,039 |                74.62% |
+| New preserve/Smaller        |   54,537,766 |                77.36% |
+| New desktop image/Balanced  |   10,874,253 |                95.49% |
 
-日期：2026-10-06，macOS arm64。
+- Desktop image flow took ~44.9 seconds: 54 pages, each one 1400 × 1811 image, no fonts/selectable text/annotation objects. Preserve worker Balanced ~55.1 seconds, Smaller ~30.6; timings depend on device/load.
+- Both preserve outputs retained all 54 page geometries/drawing operations and all 12 link targets/attributes. Link coordinates inherited lopdf's single-precision read/write error: maximum ~0.000017 points versus original, matching old rewriting. Thirty-one source masks deduplicated to three, with every distinct mask decoded exactly.
+- Desktop/worker Balanced business objects/dictionaries/decoded streams were equivalent. Complex usage was incompletely analyzed, so downsampling remained disabled; only supported color images re-encoded. Mask/pattern/font protection was not weakened.
+- All 54 pages of both preserve and desktop image results rendered in Poppler at 100 DPI without errors. Source comparisons on pages 1/8/50/54: preserve Balanced RGB RMSE ~0.45–0.50, Smaller ~0.33–0.55, image ~21.83–44.44. These metrics do not directly rank human quality. Text, charts and reference-link pages looked correct.
+- Original checksum unchanged. Evidence: ignored `tmp/real-0.1.7/`.
 
-- 删除顶部介绍区（宣传标题、说明及隐私提示）和底部宣传页脚，压缩设置与文件区直接位于顶栏下方，适用于全部八种语言。
-- 移除相关 CSS 及空提示栏的预留高度；保留状态消息的实时播报区域，有提示时再添加间距。
-- TypeScript 检查通过。实际页面确认介绍和页脚节点已删除，普通窗口工作区距顶栏 32 px，空状态消息高度为 0；未发现按钮或档位文字溢出。
-- 900 × 650 窗口、德语图片模式及非空操作提示检查通过。实际打开 release 0.1.6，确认界面直接显示压缩设置和文件区，沿用已保存的中文、浅色、均衡及 Downloads 设置。
-- macOS arm64 应用和 DMG 构建、磁盘校验及应用 / worker 的 ad-hoc 签名检查通过；内嵌 worker 版本为 0.1.6，校验值已更新至包旁的 `SHA256SUMS.txt`。
+### Regressions and packaging
 
-## 0.1.5：八种界面语言
+- 52 Rust tests passed, including ordinary links with image/vector optimization, CLI links/empty forms, desktop attachment trees/page associations/data, cyclic-tree no-output behavior, and existing cancellation/input-change/corruption/file protections.
+- Real PDF.js pixel tests covered existing/generated field appearances, checkbox state, visible nonprinting highlights, independent annotation canvases, hidden fields, missing parse results and damaged-appearance rejection. Missing-image/font-cache regressions passed.
+- Actual desktop batch: a form/highlight/Chinese-named-attachment sample exported successfully, with identical attachment bytes and no AcroForm/page Annots. HTML note-icon and damaged-annotation negatives reported pages; counts were one complete/two failed, without outputs or leftover pixel directories. Poppler/manual checks confirmed values, checks, highlights and hidden regions.
+- TypeScript, Prettier, fmt, workspace clippy and eight-language passed. macOS App/DMG and disk verification passed. Original language/light/image Balanced settings were retained, Downloads restored and queue cleared. Windows/Intel device checks remained outstanding.
 
-日期：2026-10-06，macOS arm64。
+## 0.1.6: simpler main interface
 
-- 添加 English、简体中文、法语、西班牙语、韩语、日语、德语、葡萄牙语，右上角原生语言菜单可随时切换。首次匹配系统语言，之后记住选择；不支持的系统语言回退英文。
-- 273 条消息覆盖界面、状态、阶段、预览、说明和已知应用 / 引擎错误。语言变化即时更新现有任务和报告。文件名、路径及未知底层诊断不做子串替换；压缩算法和参数不变。
-- `npm run test:i18n` 五项测试通过，覆盖所有语言的消息及占位符完整性、区域语言及回退、动态阶段和嵌套错误、文件路径保留、数字 / 字节 / 百分比格式。加入原生平台 CI。
-- TypeScript、Prettier 及真实 PDF.js 渲染失败检测回归通过。复查六份已有真实文件报告，在非中日文语言中未残留中文处理说明。
-- 前端实际切换八种语言，两种内容模式、800 px 窄窗口及普通窗口未发现文字溢出；法语深色主题可读，刷新保留语言选择。
-- 深色主题改为中性炭灰色，插画、边框、选中状态和主按钮同步调整。语言图标放在明暗切换右侧，收起时不显示语言文字；仍使用原生八语言弹窗。最终 release 中确认点击及空格 / 方向键 / 回车可选择语言。
-- 原生应用实际导入含中文名称的 PDF，两种模式均完成，前后双栏预览正常；保留模式结果及报告即时切为法语，文件名保持原样。损坏 JPEG 的图片模式按预期失败，错误原因及完成 / 失败数量正确翻译，未导出不完整文件。
-- 重启验证语言记忆。最终 macOS arm64 应用和 DMG 构建、磁盘校验及应用 / worker 的 ad-hoc 签名检查通过；内嵌 worker 版本为 0.1.5，DMG 校验值保存在 `SHA256SUMS.txt`。
+Date: 2026-10-06, macOS arm64.
 
-## 0.1.4：重复矢量轮廓复用
+- Removed the top introduction (headline, description/privacy callout) and promotional footer in all eight languages; settings/files now follow the header directly.
+- Removed related CSS and empty-message reserved height. Retained the live announcement region, adding spacing only when needed.
+- TypeScript passed. Actual page checks confirmed removed nodes, 32 px workspace/header spacing, zero empty-message height and no button/preset text overflow.
+- Checked 900 × 650, German image mode and a nonempty message. Actual release 0.1.6 opened directly on settings/files, retaining Chinese/light/Balanced/Downloads.
+- macOS App/DMG, disk verification and ad-hoc signatures passed; worker 0.1.6, package-side `SHA256SUMS.txt` updated.
 
-日期：2026-10-06。macOS arm64；仅使用本地 H 文件，原件保持只读。没有可用的 Acrobat 同输入结果，不作与 Acrobat 的画质或体积排名。
+## 0.1.5: eight interface languages
 
-### 实施
+Date: 2026-10-06, macOS arm64.
 
-H 含大量重复的转曲字形；此前逐次在页面中写入整套曲线。新增 Rust `reusable_paths`：对平移后完全相同的闭合、纯色填充路径建立可共享的矢量 Form，用精确的十进制定点坐标恢复位置。图片质量和 DPI 参数与 0.1.3 相同，这一版的主要收益来自矢量数据复用。
+- Added English, Simplified Chinese, French, Spanish, Korean, Japanese, German and Portuguese through the native header menu. Initial supported system-language matching, otherwise English; later choices persist.
+- 273 messages cover UI, status, stages, preview, descriptions and known app/engine errors. Existing tasks/reports update immediately. Filenames/paths/unknown low-level errors receive no substring translation. Compression algorithms/parameters stayed unchanged.
+- Five `npm run test:i18n` tests passed for messages/placeholders, locales/fallback, dynamic/nested errors, path preservation and number/byte/percentage formatting; added to native CI.
+- TypeScript, Prettier and real PDF.js render-failure regressions passed. Six existing real-file reports had no leftover Chinese descriptions in non-Chinese/Japanese languages.
+- Actual frontend checks switched all eight languages/both modes at 800 px/normal widths without text overflow. French dark theme was readable; reload retained language.
+- Dark theme became neutral charcoal across illustration, borders, selection and buttons. Language icon sits immediately right of theme switching, with no collapsed text and the native eight-language popup. Final release keyboard space/arrows/Enter and clicks selected languages.
+- Native app imported a Chinese-named PDF, completed both modes and displayed previews. Preserve output/report switched to French immediately without altering filenames. Corrupt-JPEG image conversion failed correctly with localized reason/counts and no incomplete export.
+- Restart confirmed language persistence. Final App/DMG, disk verification and ad-hoc signatures passed; worker 0.1.5, checksum in `SHA256SUMS.txt`.
 
-- 接触或重叠的控制点包围盒保持同组，保留内外轮廓、字形空洞以及 f / f* 填充规则。
-- 不处理图案 / 渐变填充、裁剪路径、开放轮廓、文本对象内路径、交互文档、内容数组或其他用途共享的页面流；不改写已有 Form 和字体字形。
-- 继承资源逐页复制，保留源 XObject 名称；新名称避开冲突。共享页面流分别改写；考虑资源、Form 和对象开销，收益为正才采用，最后清除不再引用的旧流。
-- 扫描、相交比较、对象数、缓存和流长度均受预算限制。取消仍由 worker 控制；保真档跳过此优化，桌面均衡 / 更小自动启用，CLI 需显式 `--reuse-paths`。
-- 检查发现，孤立的细矩形在部分渲染器中会触发不同的细线显示处理。最终 Form 加入零面积的闭合线段，不增加实际填充面积，避免细笔画显示粗细改变；已有渐变填充保持原坐标系。
+## 0.1.4: repeated vector-outline reuse
 
-### 实测体积
+Date: 2026-10-06, macOS arm64. Local source H only, read-only. No same-input Acrobat result was available, so no quality/size ranking was made.
 
-H 为 81,313,254 字节、52 页；下表均为保留原始内容模式，采用相同档位。单位为字节。
+### Implementation
 
-| 档位 |      0.1.3 |     0.1.4 | 比 0.1.3 再减少 |
-| ---- | ---------: | --------: | --------------: |
-| 更小 | 35,418,667 | 3,034,553 |          91.43% |
-| 均衡 | 36,520,413 | 4,136,053 |          88.67% |
+H contains many repeated outlined glyphs, previously written as full curves each time. Rust `reusable_paths` identifies exactly translation-equivalent closed solid-fill paths and stores shared vector Forms, restoring positions with exact decimal fixed-point coordinates. Image quality/DPI remain 0.1.3; gains primarily reflect vector reuse.
 
-最终处理共享 88,544 处矢量绘制；更小相对原件减少约 96.27%，均衡约 94.91%。压缩收益依赖文档有多少重复转曲轮廓，不能推广为所有 PDF 的统一压缩率。
+- Touching/overlapping control-point bounds remain grouped, preserving inner/outer contours, holes and f/f* rules.
+- Skip patterns/gradients, clipping, open contours, paths inside text objects, interactive documents, Contents arrays and page streams shared for other uses; existing Forms/glyphs are not rewritten.
+- Copy inherited resources per page, preserve source XObject names and avoid new-name collisions. Rewrite shared page streams independently. Include Form/object/resource overhead and prune unused old streams only with positive savings.
+- Bound scans, intersections, objects, cache and lengths; worker cancellation remains. Fidelity skipped this then; desktop Balanced/Smaller enabled it and CLI required `--reuse-paths`.
+- Isolated thin rectangles triggered different renderer thin-line behavior. Final Forms include zero-area closed segments, adding no filled area but avoiding changed thin-stroke weight. Gradients retain their original coordinate system.
 
-### 独立验证
+### Size
 
-- 两档输出全部 52 页以 Poppler 100 DPI 渲染通过，无错误或警告。与对应 0.1.3 保留结果相比 RGB RMSE 中位数约 0.243，最大约 0.795；没有承诺逐像素完全相同。
-- 全部 52 页的 124,385 个闭合填充轮廓以精确十进制坐标比对，复用前后在页面坐标系中相同；零面积辅助线段不计为填充轮廓。字体资源的解析后内容相同；6 种透明遮罩、1 个 ICC 配置、325 种 Type3 字形流的解码字节集合相同。抽查第 1、8、52 页提取文字保持。
-- 自有透明填充、带空洞轮廓与细直笔画样本通过独立渲染：Poppler 100 / 300 DPI RMSE 约 0.753 / 0；PDFium 约 0.021 / 0.009。原件和结果保留矢量，没有用栅格化取得该模式收益。
-- 第 8 页另外使用 PDFium 检查；100 / 300 DPI RGB RMSE 约 0.019 / 0.044。人工查看第 1、8、52 页，颜色、页序、布局及字形正常。
-- H / W 原件 SHA-256 与修复前一致。实测、诊断和独立检查位于忽略的 `tmp/real-0.1.4/`，不随产品分发。
+H: 81,313,254 bytes, 52 pages. Same preserve presets; bytes below.
 
-### 构建与桌面回归
+| Preset   |      0.1.3 |     0.1.4 | Additional reduction |
+| -------- | ---------: | --------: | -------------------: |
+| Smaller  | 35,418,667 | 3,034,553 |               91.43% |
+| Balanced | 36,520,413 | 4,136,053 |               88.67% |
 
-- 最终 0.1.4 全工作区 Rust 测试通过 48 项：9 项单元、24 项原始内容、1 项路径精度、9 项默认图片、4 项桌面像素输入、1 项轮廓复用。`cargo fmt`、锁定依赖的 `cargo clippy`、前端类型及格式检查通过；真实 PDF.js 有效 RGB、损坏 JPEG / 字体缓存回归通过。
-- 实际退出旧应用，打开 release 0.1.4，原生选择器导入 H；保留更小输出 3,034,544 字节，均衡 4,136,138 字节，界面显示减少 96.3% / 94.9%。字典条目顺序使输出序列化大小与 CLI 略有差异；独立比对解析后的业务对象、字典和数据流一致，容器 / 交叉引用流不作字节相等要求。
-- 第 8 页原件 / 均衡结果双栏预览正常。结束后默认输出目录恢复 Downloads，应用保留结果预览。未把用户文件发送给任何网站。
-- macOS arm64 `.app` / DMG 构建和磁盘校验通过；应用及 worker 通过 ad-hoc 签名检查，内嵌 worker 版本 0.1.4，仅依赖系统动态库。包内通知包含完整 MozJPEG / IJG 许可及源版本，DMG SHA-256 保存在包旁 `SHA256SUMS.txt`。
-- Windows、macOS Intel 的实机回归，以及正式发布的签名 / 公证仍待完成。
+Shared 88,544 drawings; reduction versus original ~96.27% Smaller/~94.91% Balanced. Benefits depend on repeated outlines, not a universal PDF ratio.
 
-## 0.1.3：路径体积与桌面位图渲染
+### Independent checks
 
-日期：2026-10-05 至 10-06。macOS arm64；Windows / Intel 尚未实机验证。H 原件与 W 对照只在本地读取；用户已确认 W 为参考网站质量优先位图输出，S 不参与本轮评估。Acrobat 已无法使用，没有可用的 Acrobat 同输入结果，因此不宣称达到或超过 Acrobat。
+- All 52 pages of both outputs rendered in Poppler at 100 DPI without errors/warnings. Median RGB RMSE vs corresponding 0.1.3 ~0.243, maximum ~0.795; pixel identity was not promised.
+- All 124,385 closed fills across 52 pages matched expanded exact decimal page coordinates, excluding zero-area helpers. Parsed font resources matched; decoded-byte sets for six masks, one ICC and 325 Type3 glyph streams matched. Text extraction on pages 1/8/52 stayed unchanged.
+- Synthetic transparent/holed/thin-stroke samples rendered independently: Poppler 100/300 DPI RMSE ~0.753/0; PDFium ~0.021/0.009. Vectors remained vectors.
+- PDFium page 8 at 100/300 DPI RMSE ~0.019/0.044. Manual pages 1/8/52 showed correct colors/order/layout/glyphs.
+- H/W source hashes unchanged. Evidence: ignored `tmp/real-0.1.4/`.
 
-### 实施及保护
+### Build and desktop
 
-- 桌面保留模式有损档增加路径精度优化，跟踪 q / Q、cm 与 UserUnit，约束物理坐标误差；只处理独立页面流。跳过内容数组、其他资源共享流、Form、字形、图案和交互文档；保真档不舍入坐标。原有文字和矢量类型保持，极细边缘可能变化。
-- 桌面位图模式改为本地 PDF.js 逐页渲染，二进制像素传给 Rust，校验源 SHA-256、页数、可见尺寸及像素长度后由 MozJPEG / Flate 编码并重建。CLI 默认渲染仍为 hayro；其单独实验结果不能冒充 macOS WebKit 桌面结果。
-- 渲染与 worker 编码各限 120 秒；渲染取消会终止 PDF.js 任务并释放临时像素目录。worker 退出后清理其输入目录，若不能确认退出则保留目录以避免 Windows 文件句柄冲突。整页转换总耗时包含渲染与编码。
-- 实机回归发现 PDF.js 会将部分异步图片解码失败解析为 null，即使 stopAtErrors 为 true 也可能导出缺图页面。新增检查本地和共享对象缓存中的失败图片 / 字体；真实 PDF.js 的有效 RGB 与损坏 JPEG 自动回归已覆盖此行为。
+- Final 48 Rust tests passed: nine unit, 24 preserve, one path precision, nine default image, four desktop-pixel and one outline reuse. fmt, locked clippy, frontend types/formatting and real PDF.js RGB/corrupt-JPEG/font-cache regressions passed.
+- Quit old app, opened release 0.1.4 and imported H through native selection. Desktop Smaller 3,034,544 bytes, Balanced 4,136,138, displaying 96.3%/94.9% savings. Dictionary ordering caused small CLI serialization differences; parsed business objects/dictionaries/streams matched, without requiring object/xref-container bytes to match.
+- Page-8 original/Balanced preview worked. Downloads restored; preview retained. No user file was sent to a website.
+- App/DMG/disk/ad-hoc checks passed; worker 0.1.4 with system-only dynamic libraries. Bundled complete MozJPEG/IJG licenses and source version were checked; DMG hash beside package in `SHA256SUMS.txt`.
+- Windows/macOS Intel devices and production signing/notarization remained outstanding.
 
-### H 真实结果
+## 0.1.3: path size and desktop bitmap rendering
 
-原件 81,313,254 字节、52 页；下表为实际产品结果，有损档位之间或与保真档不构成相同画质的压缩排名。
+Date: 2026-10-05–06, macOS arm64; Windows/Intel untested. H/W were read locally; W was confirmed reference-site Quality priority bitmap output and S excluded. Acrobat was unavailable, so matching/exceeding it was not claimed.
 
-| 模式 / 档位     | 0.1.2 字节 | 0.1.3 字节 |
-| --------------- | ---------: | ---------: |
-| 保留 · 更小     | 45,869,733 | 35,418,667 |
-| 保留 · 均衡     | 46,971,479 | 36,520,413 |
-| 桌面图片 · 更小 |  5,388,392 |  5,310,174 |
-| 桌面图片 · 均衡 |  9,974,565 |  9,813,647 |
+### Implementation and protection
 
-保留更小相对旧结果减少约 22.8%，相对原件减少约 56.4%；主要收益来自 51 个页面流的路径数字精简。均衡图片为 1400 × 1811，更小图片为 1000 × 1294。均衡图片与网站 W 的 9,811,180 字节相差 2,467 字节，约 0.025%。
+- Desktop lossy preserve presets gained path precision with q/Q, cm and UserUnit physical-error bounds, limited to independent page streams. Skip arrays, shared streams, Forms, glyphs, patterns and interactive documents. Fidelity did not round then. Text/vector types remain; very fine edges may change.
+- Desktop bitmap uses local PDF.js per page, binary pixels to Rust, with source hash/page count/visible dimensions/length checks before MozJPEG/Flate and reconstruction. CLI still defaults to hayro; its experiments are not macOS WebKit evidence.
+- Rendering/worker encoding each have 120-second limits. Render cancellation terminates PDF.js and frees pixels. Worker input directories are removed after confirmed exit; otherwise retained to avoid Windows handle conflicts. Total time includes rendering/encoding.
+- Device checks found PDF.js can resolve asynchronous image failures as null even with stopAtErrors. Added local/shared cache failure checks for images/fonts, covered by real valid-RGB/corrupt-JPEG regressions.
 
-### 独立验证及画质边界
+### Real H results
 
-- 两档保留输出全部 52 页通过 Poppler 100 DPI 渲染，无错误或警告；相对对应旧版保留输出 RGB RMSE 中位数约 0.642，最大约 1.278。抽查第 1、8、52 页操作数、操作类型、非路径参数和提取文字保持；6 种透明遮罩、1 个 ICC 配置与 325 种 Type3 字形流的解码字节集合相同。
-- 桌面保留更小输出与上述独立验证的 CLI 输出 SHA-256 相同；两档桌面位图均为 52 页，每页恰好一张图，未残留字体或可提取文字。第 8 页双栏预览的页序、布局、文字和图表正常。
-- 对 W 实际绘制图像的同尺寸 RGB RMSE 中位数：新桌面均衡约 5.63、旧版约 12.35；旧版高度为 1812，比较时用 Lanczos 调整至 1811。W 的页面共享包含 52 张图片的资源字典，比较按每页 Do 指令选择实际绘制图片。此指标只表示更接近参考结果，不能单独证明人眼画质或更接近原件。
-- 两档桌面位图全部 52 页通过 Poppler 100 DPI 渲染。相对原件的 RGB RMSE 中位数：新均衡约 42.58、旧均衡约 40.32、新更小约 43.93。此原件像素指标没有显示全面画质改善，不能将接近 W 宣传为已经超越原件或参考站画质。
-- Node / Skia 的 PDF.js 后端实验为 9,845,671 字节，与 macOS WebKit 桌面结果不同。独立浏览器 Canvas 及渲染器的差异仍需 Windows / Intel 真实回归；不承诺所有 PDF 具有相同压缩率或画质优势。
+Original: 81,313,254 bytes, 52 pages. Product preset comparisons below are not same-quality rankings.
 
-## 0.1.2：MozJPEG 接入
+| Mode/preset            | 0.1.2 bytes | 0.1.3 bytes |
+| ---------------------- | ----------: | ----------: |
+| Preserve/Smaller       |  45,869,733 |  35,418,667 |
+| Preserve/Balanced      |  46,971,479 |  36,520,413 |
+| Desktop image/Smaller  |   5,388,392 |   5,310,174 |
+| Desktop image/Balanced |   9,974,565 |   9,813,647 |
 
-日期：2026-10-05。macOS arm64、Rust 1.92.0、Node.js 23.11.0；Windows 和 macOS Intel 尚未实机验证。
+Preserve Smaller saved ~22.8% against old output/~56.4% against original, mainly path numbers in 51 page streams. Balanced images: 1400 × 1811; Smaller: 1000 × 1294. Balanced differs from W's 9,811,180 bytes by 2,467 (~0.025%).
 
-### 编码、构建与回归
+### Independent checks and quality limits
 
-- 使用锁定的 `mozjpeg 0.10.13` / `mozjpeg-sys 2.2.3`，本体源版本为 `c2bc3511d547870c4f67bbafda5fba794ba71f7f`。JPEG 编码为静态链接的 C 实现，Rust 负责 PDF 处理和参数、错误、文件保护；没有宣称 JPEG 编码为纯 Rust。
-- Rust 测试通过 40 项：7 项单元测试、24 项保留模式测试、9 项图片模式测试。新增覆盖渐进 JPEG 解码、RGB / 灰度、无效输入、扫描设置不会重置质量、可逆行预测、淡色保留、默认像素宽度及超采样预算降级。
-- `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`、`npm run check` 通过。macOS 应用和 DMG 构建成功，包通过磁盘校验；应用及 worker 通过 ad-hoc 签名检查，内嵌 worker 为 0.1.2。
-- `otool -L` 确认内嵌 worker 仅依赖系统库，没有外部 JPEG 动态库。第三方通知包含锁定本体版本的完整 IJG README、MozJPEG LICENSE 及 IJG 致谢，已检查实际应用包中的通知文件。
+- Both preserve outputs' 52 pages rendered in Poppler at 100 DPI without warnings/errors. Median RGB RMSE vs old preserve ~0.642, maximum ~1.278. Pages 1/8/52 retained operation counts/types, non-path parameters and extracted text. Six masks, one ICC and 325 Type3 stream decoded sets matched.
+- Desktop preserve Smaller matched independently validated CLI SHA-256. Both desktop bitmap outputs had 52 pages, one image each, no fonts/extractable text. Page-8 preview order/layout/text/charts looked correct.
+- Median same-size RGB RMSE against the actually drawn W images: new Balanced ~5.63, old ~12.35. Old height 1812 was Lanczos-resized to 1811; each page's Do selects its image from shared 52-image resources. This only shows closer reference pixels, not improved human/source quality.
+- Both bitmap outputs rendered all 52 pages in Poppler at 100 DPI. Median source RMSE: new Balanced ~42.58, old ~40.32, new Smaller ~43.93. These source metrics do not show universal improvement; closeness to W is not superiority over source/reference quality.
+- Node/Skia PDF.js experiment: 9,845,671 bytes, different from macOS WebKit. Canvas/renderer differences require Windows/Intel regression; no universal size/quality advantage is promised.
 
-### 真实文件结果
+## 0.1.2: MozJPEG integration
 
-同样使用桌面三份 52 页文件，原件只读、没有上传。下表为字节数：
+Date: 2026-10-05. macOS arm64, Rust 1.92.0, Node.js 23.11.0. Windows/macOS Intel devices were untested.
 
-| 文件 / 模式  |       原件 |      0.1.1 |      0.1.2 |
-| ------------ | ---------: | ---------: | ---------: |
-| H · 图片更小 | 81,313,254 |  5,211,292 |  5,388,392 |
-| H · 图片均衡 | 81,313,254 | 23,388,194 |  9,974,565 |
-| H · 图片清晰 | 81,313,254 | 63,565,665 | 63,565,665 |
-| H · 保留更小 | 81,313,254 | 46,236,745 | 45,869,733 |
-| H · 保留均衡 | 81,313,254 | 47,538,744 | 46,971,479 |
-| W · 图片更小 |  9,811,180 |  5,011,768 |  5,211,891 |
-| S · 图片更小 |  5,277,729 |  4,840,824 |  4,990,702 |
-| W · 保留更小 |  9,811,180 |  5,197,953 |  3,731,320 |
-| S · 保留更小 |  5,277,729 |  5,008,349 |  3,672,124 |
+### Encoding, build and regressions
 
-九次处理均成功。H 图片更小档由 851 × 1100 变为 1000 × 1294，像素数增加约 38.2%，大小增加约 3.4%；新版用质量 60，旧版用质量 50。H 均衡档由 1701 × 2200 / 质量 85 改为 1400 × 1812 / 质量 72，所以其体积减少不能宣传为相同画质的算法收益。保留模式也更换了量化及编码策略，质量数字不是跨编码器的通用画质单位。
+- Pinned `mozjpeg 0.10.13` / `mozjpeg-sys 2.2.3`, underlying source `c2bc3511d547870c4f67bbafda5fba794ba71f7f`. JPEG encoding is statically linked C; Rust handles PDFs, parameters, errors and file protection. Pure-Rust JPEG encoding was not claimed.
+- 40 Rust tests passed: seven unit, 24 preserve, nine image. New cases: progressive decoding, RGB/Gray, invalid input, scan settings preserving quality, reversible predictors, pale colors, default widths and supersampling-budget fallback.
+- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `npm run check` passed. App/DMG built and disk/ad-hoc checks passed; worker 0.1.2.
+- `otool -L` confirmed system-only worker libraries, without external JPEG linkage. Actual bundled notices contain the pinned source's full IJG README, MozJPEG LICENSE and IJG acknowledgment.
 
-### 独立检查与画质限制
+### Real files
 
-- pypdf 独立读取九份输出，均为 52 页。五份图片输出每页恰好一张图，页面绘制为 `q / cm / Do / Q`，无字体和可提取文字。JPEG 均可独立解码为渐进图像；Flate 像素长度符合尺寸和通道。
-- 保留输出的透明遮罩与 ICC 配置解码字节相同，Type3 字形绘制操作保持；抽查第 1、8、52 页的绘制操作及提取文字。序列化存在既有浮点精度差异，检查页面边界和字形数值采用 0.0001 点的容差，没有逐字节不变的承诺。
-- H 两档有损图片结果和两档有损保留结果全部 52 页通过 Poppler 100 DPI 独立渲染，无错误或警告。人工检查第 1、8、17、26、40、52 页及第 8 页文字 / 图表局部，页序、布局、图表保留；小字粗细和细节、部分浅色背景仍有变化。
-- 相对同一原件的 100 DPI RGB RMSE 中位数：旧图片更小约 28.19、新图片更小约 44.00、新图片均衡约 40.32。该像素指标没有显示全面改善；渲染、缩放和有损编码都会影响差异。这一版已改善编码选择及像素档位，但尚不足以承诺所有文档的可读性优于旧版或参考网站。需要更多中文、小字号彩字、细线和扫描件做相同尺寸的感知质量测试。
-- 三份原件 SHA-256 与修复前一致。检查脚本、原始报告、局部对比和渲染记录位于忽略的 `tmp/real-0.1.2/`，不随产品分发。
+The same three desktop 52-page documents were read-only and never uploaded. Bytes:
 
-### 自有合成样本
+| File/mode            |   Original |      0.1.1 |      0.1.2 |
+| -------------------- | ---------: | ---------: | ---------: |
+| H/image Smaller      | 81,313,254 |  5,211,292 |  5,388,392 |
+| H/image Balanced     | 81,313,254 | 23,388,194 |  9,974,565 |
+| H/image High quality | 81,313,254 | 63,565,665 | 63,565,665 |
+| H/preserve Smaller   | 81,313,254 | 46,236,745 | 45,869,733 |
+| H/preserve Balanced  | 81,313,254 | 47,538,744 | 46,971,479 |
+| W/image Smaller      |  9,811,180 |  5,011,768 |  5,211,891 |
+| S/image Smaller      |  5,277,729 |  4,840,824 |  4,990,702 |
+| W/preserve Smaller   |  9,811,180 |  5,197,953 |  3,731,320 |
+| S/preserve Smaller   |  5,277,729 |  5,008,349 |  3,672,124 |
 
-运行 `node scripts/benchmark.mjs tmp/benchmark-0.1.2`，两份样本执行两种模式 × 三档，共 12 次；逐次核对输入哈希。字节数如下：
+All nine runs succeeded. H Smaller changed 851 × 1100 → 1000 × 1294: ~38.2% more pixels/~3.4% larger, quality 50 → 60. Balanced changed 1701 × 2200/85 → 1400 × 1812/72; its reduction is not same-quality gain. Preserve also changed quantization/encoding, and quality numbers are not universal across encoders.
 
-| 样本 / 模式 |      原件 | 保真 / 清晰 |    均衡 |   更小 |
-| ----------- | --------: | ----------: | ------: | -----: |
-| RGB · 保留  | 5,773,152 |   5,761,015 |  87,310 | 16,634 |
-| JPEG · 保留 |   407,843 |     395,706 |  87,390 | 16,596 |
-| RGB · 图片  | 5,773,152 |      40,898 | 122,782 | 64,049 |
-| JPEG · 图片 |   407,843 |     581,124 | 121,784 | 64,159 |
+### Independent checks and limits
 
-14 份 PDF（2 原件 + 12 输出）通过独立渲染；两份保真输出与原件像素相同，保留输出可提取标题，图片输出每页一张图、无字体或文字。图片清晰档可能增大文件，符合界面提示。合成输入的重复、未压缩数据较多，不能把其压缩率推广到真实商业文件。
+- pypdf reopened all nine 52-page outputs. Five image outputs contain exactly one image per page, drawing `q / cm / Do / Q`, no fonts/text. JPEGs decode independently as progressive; Flate lengths match dimensions/channels.
+- Preserve masks/ICC decoded identically and Type3 operations remained. Pages 1/8/52 sampled drawing/text. Existing float serialization differences required 0.0001-point page/glyph tolerance; byte identity was not promised.
+- All 52 pages of H's two lossy image/two preserve outputs rendered at 100 DPI in Poppler without warnings/errors. Manual pages 1/8/17/26/40/52 and page-8 text/chart crops retained order/layout/charts, but small-text weight/details and some pale backgrounds changed.
+- Median source 100 DPI RGB RMSE: old image Smaller ~28.19, new ~44.00, new Balanced ~40.32. This does not show universal improvement; rendering/resizing/lossy coding all contribute. Encoding selection/dimensions improved, but readability superiority over old/reference output is unproven. More Chinese/colored small-text/fine-line/scan tests at equal dimensions are needed.
+- All three original hashes remained unchanged. Evidence/scripts/crops: ignored `tmp/real-0.1.2/`, not distributed.
 
-### 桌面回归
+### Synthetic samples
 
-实际退出旧进程并打开 release 0.1.2，确认两种模式、1000 / 1400 px 标签及 300 DPI 清晰档可见。通过原生选择器导入 H，执行图片更小、图片均衡和保留更小三次，均成功；界面分别显示缩小 93.4%、87.7%、43.6%，重名自动编号。第 8 页原件与图片结果双栏预览正常。测试输出保存在 `tmp/native-0.1.2/`，结束后将默认输出目录恢复为 Downloads。
+`node scripts/benchmark.mjs tmp/benchmark-0.1.2`: two samples × two modes × three presets = 12 runs, checking original hashes each time. Bytes:
 
-## 0.1.1 历史记录
+| Sample/mode   |  Original | Fidelity/High quality | Balanced | Smaller |
+| ------------- | --------: | --------------------: | -------: | ------: |
+| RGB/preserve  | 5,773,152 |             5,761,015 |   87,310 |  16,634 |
+| JPEG/preserve |   407,843 |               395,706 |   87,390 |  16,596 |
+| RGB/image     | 5,773,152 |                40,898 |  122,782 |  64,049 |
+| JPEG/image    |   407,843 |               581,124 |  121,784 |  64,159 |
 
-日期：2026-10-05；修复版本：0.1.1。  
-环境：macOS arm64、Rust 1.92.0、Node.js 23.11.0，依赖由锁定文件固定。Windows 与 macOS Intel 尚未在本地验证。
+All 14 PDFs (two sources + 12 outputs) rendered independently. Both Fidelity outputs matched source pixels; preserve titles were extractable and image outputs had one image/no fonts/text per page. High quality can grow files as disclosed. Repeated/uncompressed synthetic data does not represent commercial-file ratios.
 
-## 检查与打包
+### Desktop
 
-- Rust 自动化测试通过 33 项：2 项单元测试、24 项原始内容测试、7 项图片模式测试。
-- `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`、`npm run check` 和前端格式检查通过。
-- macOS arm64 应用和 DMG 构建成功，`hdiutil verify` 校验通过。
-- 应用及内嵌 worker 通过 `codesign --verify --deep --strict` / `--strict`（ad-hoc 签名）；worker 版本为 0.1.1。
-- DMG 的 SHA-256 保存在包旁的 `SHA256SUMS.txt`，第三方通知包含 jpeg-encoder 的 MIT、Apache-2.0 和 IJG 文件。
+Quit the old process and opened release 0.1.2. Both modes, 1000/1400 px labels and 300 DPI High quality were visible. Native selection imported H; image Smaller/Balanced and preserve Smaller all succeeded, displaying 93.4%/87.7%/43.6% reduction and numbered duplicate names. Page-8 preview worked. Outputs: `tmp/native-0.1.2/`; Downloads restored afterward.
 
-新增回归覆盖直接及间接的空批注数组、ICC 颜色图和软遮罩、复杂页面操作预算降级、重复流共享资源、等价数字写法、内容引用循环，以及渲染图片解码失败时拒绝导出不完整页面。既有测试继续覆盖矢量与文字、共享图片、资源继承、Form Matrix、CropBox / Rotate / UserUnit、未知颜色空间、表单、书签、附件、取消、加密及签名、原件变化和无覆盖提交。
+## 0.1.1 historical record
 
-## 桌面真实文件复现
+Date: 2026-10-05; fix version 0.1.1. Environment: macOS arm64, Rust 1.92.0, Node.js 23.11.0, locked dependencies. Windows/macOS Intel were not locally validated.
 
-用户提供桌面的三个 52 页 PDF，记录用 H / W / S 标识，原件只读，不随软件或代码分发。H 含大量矢量路径、Type3 字体、ICC 图片和软遮罩；W / S 的页面本来就由 JPEG 图片组成。
+### Checks and packages
 
-旧问题：H 每页的 `/Annots []` 被误判为有效批注，图片模式因此失败，保留模式也强制跳过有损图片优化。旧 JPEG 编码与档位对已压缩的 W / S 几乎没有收益。
+- 33 Rust tests passed: two unit, 24 preserve, seven image.
+- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `npm run check` and frontend formatting passed.
+- macOS arm64 App/DMG built; `hdiutil verify` passed.
+- App/worker `codesign --verify --deep --strict` / `--strict` passed with ad-hoc signing; worker 0.1.1.
+- DMG hash is in adjacent `SHA256SUMS.txt`; third-party notices include jpeg-encoder MIT, Apache-2.0 and IJG files.
 
-下表使用“更小”档位。旧版为 JPEG 65 / 150 DPI，新版为优化 Huffman、色度采样、JPEG 50 / 100 DPI，因此是实际产品档位前后比较，不是相同画质参数的算法排名。透明图片按原尺寸重编码，软遮罩像素保持无损；矢量坐标不舍入。
+New coverage: direct/indirect empty Annots arrays, ICC/masks, complex-operation budget fallback, duplicate-stream sharing, equivalent number syntax, cyclic content references and rejection of incomplete pages after image decode failures. Existing tests cover vectors/text, shared images/inheritance/Form Matrix, CropBox/Rotate/UserUnit, unknown colors, forms/bookmarks/attachments, cancellation, encryption/signatures, changed inputs and non-overwriting commits.
 
-| 文件 | 原件（字节） |         旧版保留模式 |         新版保留模式 |        新版整页图片 |
-| ---- | -----------: | -------------------: | -------------------: | ------------------: |
-| H    |   81,313,254 | 71,272,666（12.35%） | 46,236,745（43.14%） | 5,211,292（93.59%） |
-| W    |    9,811,180 |   9,803,484（0.08%） |  5,197,953（47.02%） | 5,011,768（48.92%） |
-| S    |    5,277,729 |   5,270,033（0.15%） |   5,008,349（5.10%） |  4,840,824（8.28%） |
+### Real-file reproduction
 
-H 的“均衡”保留模式为 47,538,744 字节（41.54%）；“保真”为 69,284,487 字节（14.79%）。图片模式的“均衡”为 23,388,194 字节（71.24%），300 DPI“清晰”为 63,565,665 字节（21.83%）。六组 H 处理均成功。S 已压得很紧，均衡档位仍仅有约 0.15% 结构收益。
+Three desktop 52-page PDFs are identified as H/W/S, read-only and not distributed with software/code. H has many vectors, Type3 fonts, ICC images and masks. W/S already contain JPEG pages.
 
-这些结果仅代表上述三份文件，不能据此承诺统一压缩率，亦未与用户未指定的竞争软件做同画质对比。
+Old issue: each H `/Annots []` was mistaken for a real annotation, rejecting image mode and disabling lossy preserve images. Old JPEG settings yielded almost no gains on compressed W/S.
 
-## 独立渲染与结构验证
+The table uses Smaller: old JPEG 65/150 DPI versus new optimized Huffman/chroma, JPEG 50/100 DPI. This compares product presets, not same-quality algorithms. Transparent images retain dimensions; masks remain exact; vector coordinates are not rounded.
 
-使用不属于运行依赖的 Poppler、PIL / NumPy 和 pypdf：
+| File | Original bytes | Old preserve (reduction) | New preserve (reduction) | New image (reduction) |
+| ---- | -------------: | -----------------------: | -----------------------: | --------------------: |
+| H    |     81,313,254 |      71,272,666 (12.35%) |      46,236,745 (43.14%) |    5,211,292 (93.59%) |
+| W    |      9,811,180 |        9,803,484 (0.08%) |       5,197,953 (47.02%) |    5,011,768 (48.92%) |
+| S    |      5,277,729 |        5,270,033 (0.15%) |        5,008,349 (5.10%) |     4,840,824 (8.28%) |
 
-- H 原件、保真、更小、图片更小与旧版保真结果，全部 52 页以 100 DPI 独立渲染，无错误或警告。
-- 新版保真与旧版保真 52 页像素完全相同。与原件比较，42 页像素完全相同，10 页各有 1–3 个边缘像素差异；旧版已有同样差异。抽查第 8 页的 50,562 条绘制指令与原件的操作数及数值相同。没有声称真实文件逐像素完全无差异。
-- 保留模式继续包含源文字、字体和矢量内容，透明遮罩和 ICC 配置保持；没有将 H 的整页内容栅格化来取得保留模式压缩率。
-- H 三档、W / S 更小档的五份图片模式输出均为 52 页，每页一张独立图，无残留字体和可提取文字。
-- H 更小档位的逐页 RGB RMSE 中位数：保留模式约 [0.814, 0.607, 0.751]，图片模式约 [28.529, 28.062, 27.999]。指标仅作辅助，栅格抗锯齿和渲染器差异也会影响数值。
-- 人工查看第 1、8、17、26、40、52 页的原件 / 保留 / 图片对比，文字、布局、图表和页序正常；有损模式的小字及颜色仍应由使用者按用途检查。
-- 三份原件 SHA-256 均与修复前一致。
+H preserve Balanced: 47,538,744 bytes (41.54%); Fidelity: 69,284,487 (14.79%). Image Balanced: 23,388,194 (71.24%); 300 DPI High quality: 63,565,665 (21.83%). All six H runs succeeded. Tightly compressed S gained only ~0.15% structure savings in Balanced.
 
-原始报告与独立检查结果位于忽略的 `tmp/real-before/` 和 `tmp/real-after-2/`，不作为产品资源分发。
+These three files establish no universal ratio and were not compared at matched quality against unspecified competing software.
 
-## 合成样本复测
+### Independent rendering and structure
 
-运行 `node scripts/benchmark.mjs tmp/benchmark-0.1.1`，两份自有样本执行两种模式 × 三档画质，每次核对原件哈希。以下为字节数，正百分比表示缩小。
+Development-only Poppler, PIL/NumPy and pypdf checked:
 
-| 样本        |      原件 | 保留模式·保真 / 清晰 |              均衡 |             更小 |
-| ----------- | --------: | -------------------: | ----------------: | ---------------: |
-| RGB 合成页  | 5,773,152 |   5,761,015（0.21%） | 101,300（98.25%） | 21,722（99.62%） |
-| JPEG 合成页 |   407,843 |     395,706（2.98%） | 101,512（75.11%） | 21,695（94.68%） |
+- All 52 pages of H source, Fidelity, Smaller, image Smaller and old Fidelity rendered at 100 DPI without errors/warnings.
+- New/old Fidelity matched every pixel. Against source, 42 pages matched exactly; ten had 1–3 edge-pixel differences each, also present in old Fidelity. Page 8's 50,562 drawing operations matched source operands/values. Real-file pixel-perfect fidelity was not claimed.
+- Preserve retains text/fonts/vectors, masks and ICC; no full-page rasterization produced its gains.
+- Five image outputs (three H presets, W/S Smaller) each have 52 pages, one independent image each, no residual fonts/text.
+- H Smaller per-channel median RGB RMSE: preserve ~[0.814, 0.607, 0.751], image ~[28.529, 28.062, 27.999]. Metrics are supplementary and include antialiasing/renderer effects.
+- Manual pages 1/8/17/26/40/52 showed correct text/layout/charts/order. Lossy small text/colors still require review for the intended use.
+- All three original hashes stayed unchanged.
 
-| 样本        |      原件 | 图片模式·保真 / 清晰 |              均衡 |             更小 |
-| ----------- | --------: | -------------------: | ----------------: | ---------------: |
-| RGB 合成页  | 5,773,152 |    184,063（96.81%） | 126,343（97.81%） | 28,103（99.51%） |
-| JPEG 合成页 |   407,843 |  910,577（-123.27%） | 127,123（68.83%） | 28,005（93.13%） |
+Raw records/checks: ignored `tmp/real-before/` and `tmp/real-after-2/`, not product assets.
 
-14 份 PDF（2 原件 + 12 结果）以 100 DPI 独立渲染通过，两份保真结果与原件像素完全相同；保留结果可提取标题，六份图片结果每页一张图、无字体或文字。合成样本重复和未压缩数据较多，压缩率不能代表商业文件。报告保存在 `tmp/benchmark-0.1.1/`。
+### Synthetic rerun
 
-## 桌面回归
+`node scripts/benchmark.mjs tmp/benchmark-0.1.1`: two synthetic sources × two modes × three presets, checking original hashes each run. Positive percentages mean smaller.
 
-退出旧应用后实际打开 release 0.1.1，确认版本、两个输出模式和 100 DPI 更小档位可见。通过原生选择器导入 H、选择本地测试输出目录并在界面执行两种模式：图片模式成功显示缩小 93.6%，保留模式成功显示缩小 43.1%，同名结果自动编号。原件与保留结果双栏预览正常。
+| Sample |  Original | Preserve Fidelity (reduction) | Balanced (reduction) | Smaller (reduction) |
+| ------ | --------: | ----------------------------: | -------------------: | ------------------: |
+| RGB    | 5,773,152 |             5,761,015 (0.21%) |     101,300 (98.25%) |     21,722 (99.62%) |
+| JPEG   |   407,843 |               395,706 (2.98%) |     101,512 (75.11%) |     21,695 (94.68%) |
 
-另使用自有含文本批注的负面样本验证：真正含批注的图片转换会显示具体拒绝原因，行内原因无需先打开详情，批次正确显示“1 个完成，1 个失败”。空批注数组的 H 则正常处理。
+| Sample |  Original | Image High quality (reduction) | Balanced (reduction) | Smaller (reduction) |
+| ------ | --------: | -----------------------------: | -------------------: | ------------------: |
+| RGB    | 5,773,152 |               184,063 (96.81%) |     126,343 (97.81%) |     28,103 (99.51%) |
+| JPEG   |   407,843 |             910,577 (-123.27%) |     127,123 (68.83%) |     28,005 (93.13%) |
 
-此前 0.1.0 的包内 worker 已验证：约 138 MB、24 页样本在图片渲染阶段取消，未提交 PDF、临时目录为空、原件哈希不变。新版自动化取消测试通过；桌面强制终止、超时和强制杀死应用后的恢复清理仍需单独回归。
+All 14 PDFs rendered independently at 100 DPI. Both Fidelity results matched source pixels; preserve titles were extractable; six image outputs had one image/no fonts/text per page. Synthetic repetition/uncompressed data does not represent commercial files. Reports: `tmp/benchmark-0.1.1/`.
 
-## 发布前待完成
+### Desktop regression
 
-- 更多有使用许可的中文、小字扫描、透明度、复杂颜色及图纸文件；逐页确认字体、颜色和可见区域。
-- 解决真实文件保真序列化的极少边缘像素差异，避免作逐像素保真承诺。
-- 总内存预算、恶意输入、磁盘不足、只读目录、超时、强制取消与崩溃恢复。
-- Windows x64、macOS Intel 的原生构建与干净环境离线安装回归。
-- 正式公开分发的 Developer ID 签名、公证、Windows 签名和许可复核。
+Quit the old app and opened release 0.1.1; verified version, modes and 100 DPI Smaller. Native selection imported H and a local output folder. Image/preserve both succeeded, displaying 93.6%/43.1% reductions, numbered outputs and working original/preserve previews.
+
+A synthetic text-annotation negative showed a specific inline rejection reason without opening details; batch counts correctly showed one complete/one failed. H's empty arrays processed normally.
+
+Previously, the packaged 0.1.0 worker canceled a ~138 MB, 24-page sample during rendering without committing a PDF, leaving an empty temporary directory and unchanged original. New automated cancellation tests passed. Desktop force termination/timeouts and recovery after killing the application still require separate regression.
+
+### Outstanding before release at this stage
+
+- More licensed Chinese/small-text scans/transparency/complex-color/drawing documents, checking fonts/colors/visible areas on every page.
+- Resolve rare edge-pixel serialization differences before any pixel-perfect fidelity promise.
+- Total memory budgets, malicious inputs, disk full, read-only folders, timeouts, forced cancellation and crash recovery.
+- Native Windows x64/macOS Intel builds and clean offline installations.
+- Production Developer ID signing/notarization, Windows signing and license review.

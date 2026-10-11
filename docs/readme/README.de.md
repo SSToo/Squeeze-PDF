@@ -1,10 +1,10 @@
 # Squeeze PDF
 
-[English](README.en.md) · [简体中文](../../README.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **Deutsch** · [Português](README.pt.md)
+[English](../../README.md) · [简体中文](README.zh-CN.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **Deutsch** · [Português](README.pt.md)
 
 Ein quelloffener, vollständig offline arbeitender PDF-Kompressor für Windows und macOS, derzeit im MVP-Stadium. Die Oberfläche nutzt Tauri 2 und React. Rust implementiert Kompressionsstrategien, Bildverarbeitung, Seitenrekonstruktion und Dateischutz. lopdf liest und schreibt PDFs; die Desktop-App rendert mit lokalem PDF.js, die CLI standardmäßig mit hayro. MozJPEG wird über Rust statisch eingebunden. Zur Laufzeit sind weder qpdf noch Ghostscript oder Python erforderlich.
 
-Installationspakete für Windows x64, macOS Apple silicon und macOS Intel stehen unter [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) bereit. Ein `v`-Tag, das der App-Version entspricht, veröffentlicht nach drei erfolgreichen Builds automatisch die Installationspakete und Prüfsummen. Siehe [Veröffentlichungsanleitung](../RELEASING.md) (Chinesisch/Englisch).
+Installationspakete für Windows x64, macOS Apple silicon und macOS Intel stehen unter [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) bereit. Ein `v`-Tag, das der App-Version entspricht, veröffentlicht nach drei erfolgreichen Builds automatisch die Installationspakete und Prüfsummen. Siehe [Veröffentlichungsanleitung](../RELEASING.md) (Englisch).
 
 Ab 0.1.25 prüfen veröffentlichte Versionen etwa fünf Sekunden nach dem Start und danach alle 24 Stunden auf stabile GitHub-Updates. Über das Update-Symbol ist eine manuelle Prüfung möglich. Installation und Neustart erfolgen nach Ihrer Auswahl und erst nach laufenden Dateiaufgaben. Offline-Fehler unterbrechen die Komprimierung nicht. Nur Versionsprüfung und Update-Download nutzen das Netzwerk; PDFs werden nie hochgeladen. Version 0.1.24 und älter erfordern zunächst ein manuelles Upgrade.
 
@@ -124,7 +124,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 Die große Probe erzeugt zusätzlich ein PDF mit etwa 138 MB und 24 Seiten für Abbruch- und Großdateitests. Synthetische Kompressionsraten sagen reale Dokumente nicht voraus. Poppler, pypdf, Pillow und NumPy dienen unabhängigen Entwicklungsprüfungen und sind keine Laufzeitabhängigkeiten.
 
-Ausführliche Aufzeichnungen derzeit auf Chinesisch: [Validierung](../VALIDATION.md), [Plan](../../PLAN.md). Jpegli und Brotli-Ausgabe sind Experimente, keine Produktabhängigkeiten oder Ausgabeoptionen.
+Ausführliche Aufzeichnungen auf Englisch: [Validierung](../VALIDATION.md), [Plan](../../PLAN.md). Jpegli und Brotli-Ausgabe sind Experimente, keine Produktabhängigkeiten oder Ausgabeoptionen.
 
 ## Materialien Dritter
 

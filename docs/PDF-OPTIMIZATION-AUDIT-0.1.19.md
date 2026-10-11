@@ -1,138 +1,138 @@
-# 0.1.19 压缩能力复核与后续实施计划
+# 0.1.19 compression review and implementation plan
 
-日期：2026-10-08。范围：当前工作区的 0.1.19 引擎、桌面图片模式及第七轮验证记录。本次仅作代码审阅、既有记录统计与官方资料核对；不修改产品代码、参数、版本或发布包，不生成新的压缩结果。之前已完成的能力以 [验证记录](VALIDATION.md) 为准。
+Date: 2026-10-08. Scope: the workspace's 0.1.19 engine, desktop image mode and seventh-round validation records. This review inspected code, existing measurements and official references only. It did not change product code, parameters, versions or packages, or generate new compression results. Previously delivered capabilities are documented in the [validation record](VALIDATION.md).
 
-结论：仍有通用优化空间，优先补齐现有算法的入口与规模覆盖。建议顺序为：保护与验证基础 -> 图片解码入口 -> 编码选择 -> 大图与长文档 -> 精确资源共享 -> 桌面图片质量 -> CMYK JPEG -> 自动字体子集 -> 矢量与遮罩。后五项主要延续此前尚未实施的计划，不作为本次新发现或已交付能力。
+There is still room for general optimization, starting with entry-point and scale coverage for existing algorithms. Recommended order: protection and validation → image decoding → encoding selection → large images/long documents → exact resource sharing → desktop image quality → CMYK JPEG → automatic font subsetting → vectors and masks. The last five mostly continue earlier unimplemented plans; they are not new discoveries or delivered capabilities in this review.
 
-## 本次核实的缺口
+## Confirmed gaps
 
-| 项目                                 | 当前证据                                                                                                                 | 判断                                                                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 图片优化先于编码链剥离               | lib.rs 中 images::optimize 在前，stream_candidates::choose 在最后；后者明确不再次执行图片有损路径                        | 去掉 ASCII 包装后，只尝试剥离、结构与写入候选，没有让 JPEG 系数优化、图片预测与解码共享在同次处理中使用这一入口                            |
-| 超过 256 色的 RGB 候选不完整         | image_encoding.rs 的普通 Flate 条件为 force_flate、单通道或精确调色板；images.rs 的原生样本路径主要限解码失败或 Lossless | Fidelity / 均衡 / 更小中的可正常解码 RGB 插图、彩色文字截图，即使行相关性很强，也可能没有 Flate 候选；桌面整页编码复用同一限制             |
-| 大图和长文档的新增工作容易被跳过     | native_samples.rs 每张 4 MiB，images.rs 文档 16 MiB / 四秒；完整流候选和写入布局有 64 MiB 编码负载门槛                   | 这是资源预算，不是用户文件大小限制；取消默认文件上限并没有让所有优化覆盖大文件                                                             |
-| 资源共享未覆盖原生样本与全部编码等价 | resources.rs 使用 images::decode；resource_graph.rs 比较编码流字节                                                       | 16 位、特殊颜色、部分参数形式或包装链可能错过共享；非图片叶子资源的解码等价尚未进入产品                                                    |
-| 身份保护覆盖不一致                   | 新候选在 coalesce::identity_bound 后跳过去重；lib.rs 的旧路径仍调用 structure::deduplicate，后者没有同一检查             | 确认的是保护入口缺口，尚未构造本轮损坏反例；应先增加重复内容流被 MCR /Stm、OBJR、AP 等引用的反例检查，不能只看页面像素                     |
-| 最终图片诊断与阶段结果可能不一致     | 第七轮 hex-jpeg-image / fidelity 的 images 仍记 original、52,523 B，最终 size_after.images 已是 26,261 B                 | 完整文件大小已正确，但单图报告未体现后续剥离；需要区分尝试、最终采用与回退，而非据此断言图片没有优化                                       |
-| 最新压缩对照集合规模单一             | verified/reports.json 共 47 类 / 326 对，页数全部为 1；最大源文件 916,813 B，最大原图 199,557 像素                       | 该集合验证局部结构有效，不能据此推导 100 页、几十 MiB 图片、跨页共享或连续桌面任务的表现；既有大文件入口测试仍保留，但不是大图优化收益验证 |
-| 桌面与 CLI 图片渲染不同              | rasterCompress.ts 直接以输出尺寸渲染；raster.rs 在预算内采用 2 倍渲染后缩小；桌面当前有整份渲染 120 秒时限               | 第七轮已建立 18 例原生 WKWebView 基线，但采用隔离进程与 QA IPC；真实连续任务、Windows WebView2 和桌面超采样仍需单独验收                    |
+| Item                                                       | Evidence at the time                                                                                                                                                             | Assessment                                                                                                                                                                                                  |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image optimization precedes encoding-chain removal         | In lib.rs, images::optimize runs first and stream_candidates::choose last; the latter explicitly avoids rerunning lossy image processing                                         | Removing ASCII wrappers only enables stripping, structure and writer candidates; JPEG coefficient optimization, image prediction and decoded sharing cannot use the newly exposed input in the same pass    |
+| Incomplete RGB candidate coverage above 256 colors         | Ordinary Flate in image_encoding.rs requires force_flate, a single channel or an exact palette; the native-sample path in images.rs mainly handles decode failures or Lossless   | Normally decodable RGB illustrations and colored-text screenshots may lack a Flate candidate in Fidelity/Balanced/Smaller despite strong row correlation. Desktop page encoding shares this limitation.     |
+| New work is often skipped for large images/documents       | native_samples.rs has a 4 MiB per-image budget; images.rs has 16 MiB/four-second document budgets; complete-stream and writer candidates have a 64 MiB encoded-payload threshold | These are resource budgets, not user file-size limits. Removing the default file cap did not extend every optimization to large files.                                                                      |
+| Sharing omits native samples and some encoding equivalence | resources.rs uses images::decode; resource_graph.rs compares encoded bytes                                                                                                       | 16-bit images, special colors, parameter forms and wrappers can miss sharing. Decoded equivalence for non-image leaf resources is not in production.                                                        |
+| Inconsistent identity protection                           | New candidates skip deduplication after coalesce::identity_bound; the older lib.rs path calls structure::deduplicate without the same check                                      | A protection gap is confirmed, but no new corruption example was constructed here. Add duplicate content-stream cases referenced by MCR /Stm, OBJR and AP before judging page pixels alone.                 |
+| Final image diagnostics can disagree with stage results    | Seventh-round hex-jpeg-image / fidelity reports images as original, 52,523 B, while final size_after.images is 26,261 B                                                          | Complete-file size is correct, but per-image reporting misses later stripping. Distinguish attempted, adopted and reverted candidates.                                                                      |
+| Latest comparison set has limited scale                    | verified/reports.json has 47 categories / 326 pairs, all one-page; largest input 916,813 B, largest image 199,557 pixels                                                         | This validates local structures, not 100-page documents, images of tens of MiB, cross-page sharing or consecutive desktop tasks. Existing large-file entry tests are not large-image optimization evidence. |
+| Desktop and CLI rendering differ                           | rasterCompress.ts renders at output size; raster.rs can render at 2× and downsample; desktop rendering has a 120-second whole-document limit                                     | Seventh-round validation established 18 native WKWebView baselines using isolated processes and QA IPC. Real consecutive tasks, Windows WebView2 and desktop supersampling still need separate acceptance.  |
 
-关键入口：[图片候选](../crates/squeeze-core/src/image_encoding.rs)、[图片处理](../crates/squeeze-core/src/images.rs)、[原生样本](../crates/squeeze-core/src/native_samples.rs)、[主流程](../crates/squeeze-core/src/lib.rs)、[完整候选](../crates/squeeze-core/src/stream_candidates.rs)、[旧流去重](../crates/squeeze-core/src/structure.rs)、[桌面渲染](../src/rasterCompress.ts)。
+Relevant entry points: [image candidates](../crates/squeeze-core/src/image_encoding.rs), [image processing](../crates/squeeze-core/src/images.rs), [native samples](../crates/squeeze-core/src/native_samples.rs), [pipeline](../crates/squeeze-core/src/lib.rs), [complete candidates](../crates/squeeze-core/src/stream_candidates.rs), [older stream deduplication](../crates/squeeze-core/src/structure.rs), [desktop rendering](../src/rasterCompress.ts).
 
-本次没有重复宣称对象流、PNG 五种行预测、精确 Indexed / G4、RGB / Gray JPEG 系数优化、已有资源清理与矢量轮廓复用是待新增功能。它们已经存在；计划补的是适用入口、候选选择、规模和验证。
+Object streams, five PNG row predictors, exact Indexed/G4, RGB/Gray JPEG coefficient optimization, resource cleanup and vector-outline reuse already exist. This plan extends their eligibility, candidate selection, scale and validation rather than presenting them as new features.
 
-## 建议实施顺序
+## Recommended implementation order
 
-### 0. 先统一保护、基线与诊断，P0
+### 0. Unify protection, baselines and diagnostics — P0
 
-目标：让后续收益比较具有正确的基线，并能解释每个跳过原因。
+Goal: establish correct comparisons and explain each skip.
 
-- 为会合并对象的旧入口、新入口统一身份保护。优先保护被内容流身份、标签对象关系、交互外观引用约束的对象；无法界定时跳过该策略，安全叶子资源另作判断。
-- 增加同页相同 MCID 但不同 Stm、跨页共享、独立重复外观等反例；核对标签引用与归属、表单字段和值、附件字节及共享关系。像素一致不能替代对象关系检查。
-- 将现有单页验证器扩展为遍历所有页面；新增 10 / 100 页共享资源、自有大图、混合编码、不同页框 / 旋转 / UserUnit、取消与连续任务样本。不要求用户搜集全面文档。
-- 记录最终采用方案中的单图编码 / 字节 / 尺寸、跳过分类、预算耗尽位置、各阶段时间与峰值内存。回退候选不能冒充最终节省；对象重编号后保持诊断可追踪。
-- 保留冻结 0.1.19 对照。正确性修复与压缩收益分别记录：如果旧结果破坏对象身份，不能把这个较小但错误的结果作为必须保持的体积基线。
+- Apply consistent identity protection to old and new object-merging paths. Protect objects constrained by content-stream identity, tag relationships and interactive appearances. Skip a strategy when boundaries are unclear; assess safe leaf resources separately.
+- Add counterexamples with identical MCIDs in different Stm objects on the same page, cross-page sharing and independent duplicate appearances. Check tag references/ownership, form fields/values, attachment bytes and sharing. Pixel equality cannot replace object-relationship checks.
+- Extend single-page validators to all pages. Add 10-/100-page shared-resource samples, synthetic large images, mixed encodings, differing page boxes/rotation/UserUnit, cancellation and consecutive tasks. Users should not have to collect a comprehensive corpus.
+- Report final per-image encoding/bytes/dimensions, skip classes, exhausted budgets, stage timings and peak memory. Reverted candidates are not final savings. Keep diagnostics traceable after renumbering.
+- Freeze a 0.1.19 baseline. Record correctness fixes separately from compression gains: an older, smaller output that breaks identity is not a valid size target.
 
-交付：统一保护策略、可执行多页回归语料与最终方案诊断；不以此宣称新的压缩百分比。
+Deliverables: unified protection, executable multipage regression samples and final-candidate diagnostics, without claiming a new compression percentage.
 
-### 1. 统一并前置图片解码入口，P1，首先做
+### 1. Unify and move image decoding earlier — P1, first optimization
 
-目标：同一张图片不再因为包装、数组或间接引用而错过已有能力。
+Goal: wrappers, arrays and indirect references should not prevent the same image from accessing existing algorithms.
 
-- 在资源共享及主图片优化之前建立受限规范化视图，复用严格过滤器解析。包装剥离保留 JPEG / G4 终端负载；原始来源与语义属性保留供基线及候选使用。
-- 统一 Filter、DecodeParms、BitsPerComponent、尺寸及颜色空间的间接引用处理；支持明确可解释的 LZW / RunLength 图片样本。LZW / Flate 预测器按参数与位深正确还原，不能一律当 Predictor 1。
-- 避免剥离包装后又因 DecodeParms null / 数组等价形式被另一入口拒绝；也不能把未知或有效非默认参数删除掉来强行解锁优化。
-- 有损 JPEG 候选始终从本次原始样本生成一次，系数候选从原始终端 JPEG 生成；不对已经有损重编码的结果循环量化。
-- 每个完整方案从固定来源派生，保留现有完整文件回退。移到前段不代表丢掉原压缩路径对照。
+- Build a restricted normalized view before resource sharing and main image optimization, reusing strict filter parsing. Strip wrappers while retaining terminal JPEG/G4 payloads, original provenance and semantic attributes for baselines/candidates.
+- Unify indirect-reference handling for Filter, DecodeParms, BitsPerComponent, dimensions and color spaces. Support clearly interpretable LZW/RunLength samples. Restore LZW/Flate predictors according to their parameters and bit depth rather than assuming Predictor 1.
+- Avoid rejecting equivalent null/array DecodeParms forms in a later entry point after unwrapping. Never delete unknown or meaningful nondefault parameters merely to enable optimization.
+- Generate lossy JPEG candidates once from this run's original samples, and coefficient candidates from the original terminal JPEG. Do not repeatedly quantize already re-encoded output.
+- Derive each complete candidate from a fixed source and retain existing complete-file fallback. Moving a stage earlier must preserve the previous compression baseline.
 
-验收：同一内容采用不同包装 / 引用形式时获得等价的候选覆盖；像素、分量或系数及文字 / 标签语义符合相应承诺；完整输出相对正确基线不增大。
+Acceptance: equivalent content with different wrappers/references gets equivalent candidate coverage; pixels, components, coefficients and text/tag semantics meet the relevant promises; complete output does not grow relative to a correct baseline.
 
-[qpdf 的过滤器层级](https://qpdf.readthedocs.io/en/stable/cli.html#option-decode-level) 支持将通用可逆编码与 JPEG 等终端图像编码分开处理；具体安全范围仍由本项目测试决定。[PDF 参数勘误](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html) 特别说明预测参数中的 BitsPerComponent 与图片字典同名键不能简单视为一回事。
+[qpdf's filter levels](https://qpdf.readthedocs.io/en/stable/cli.html#option-decode-level) support separating general reversible encodings from terminal image encodings such as JPEG. This project's tests determine its safe scope. [PDF parameter errata](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html) explain why predictor BitsPerComponent must not simply be equated with the same-named image-dictionary key.
 
-### 2. 内容感知的图片编码选择，P1，两种模式共用
+### 2. Content-aware image encoding — P1, shared by both modes
 
-目标：彩色文字、图表、插图和渐变不因超过 256 色就只有 JPEG 或原编码可选。
+Goal: colored text, charts, illustrations and gradients should have more than JPEG/original encoding just because they exceed 256 colors.
 
-- 使用分散行 / 区域抽样分析相邻像素差、重复行与可压缩性，判断是否值得生成精确 RGB Flate 候选；抽样只调度工作，不修改像素、不证明全图等价。
-- 先尝试少量预测与 Deflate 组合，只有完整候选有希望时扩大搜索。保留现有预测器算法，不对所有照片无条件执行八次整图压缩。
-- 原编码、精确 Flate、适用的精确 Indexed / G4 与既有 MozJPEG 共同竞争。严格无损禁止有损候选；保真保持原尺寸和现有 JPEG 参数，新增精确候选不引入近似调色或灰度判断。
-- 以流字典加负载成本筛选，再比较完整 PDF；对于可能改变共享关系的选择，不能只看单张图片负载。
+- Sample dispersed rows/regions for adjacent-pixel differences, repeated rows and compressibility to schedule exact RGB Flate candidates. Sampling schedules work; it neither changes pixels nor proves whole-image equivalence.
+- Try a small number of predictor/Deflate combinations first, expanding only when a complete candidate looks promising. Retain existing predictors without unconditionally performing eight full-image compressions on every photo.
+- Compare original encoding, exact Flate, eligible exact Indexed/G4 and existing MozJPEG candidates. Lossless forbids lossy candidates. Fidelity keeps dimensions and existing JPEG parameters; exact candidates must not introduce approximate palettes or grayscale detection.
+- Screen by dictionary-plus-payload cost, then compare complete PDFs. A choice affecting sharing cannot be judged from one image's payload alone.
 
-验收：超过 256 色的彩色文字 / 抗锯齿图表 / 渐变能够尝试合适的精确编码；照片用例的耗时有预算，输出与质量不退步。收益数值必须待实施后实测。
+Acceptance: colored text, antialiased charts and gradients above 256 colors can try appropriate exact encodings. Photo processing stays budgeted, with no size/quality regression. Measure gains after implementation.
 
-### 3. 大图与长文档的有界处理，P1
+### 3. Bounded processing for large images and long documents — P1
 
-目标：让已经验证的精确算法覆盖常见高分辨率图片，而非简单扩大所有内存上限。
+Goal: extend verified exact algorithms to common high-resolution images without simply raising every memory limit.
 
-- 将原始样本读取、预测和 Deflate 改为分行处理，保留前一行及必要历史；候选大负载采用临时文件，减少多份整图与整文档克隆。
-- 分开设置单个样本峰值内存、文档总工作量与任务截止时间；按预计收益 / 成本调度，让前几页不耗尽整份文档的全部新增预算。
-- 对编码负载超过 64 MiB 的文档，研究只替换候选对象的方案和顺序写出验证。此项依赖存储路径验证，首版可按功能逐项扩大资格；不承诺一次解除所有限制。
-- 增加真实任务的取消检查边界；把单次不可中断的 FFI 编码与软截止时间区别记录。桌面已有 worker 超时与终止机制继续适用。
-- 先建立重复使用关系 / 解析结果缓存，按对象图变化失效；解码缓存有明确字节上限，不积累整个文档的页面像素。
+- Read raw samples, predict and Deflate row by row, retaining the previous row and necessary history. Use temporary files for large candidate payloads to reduce full-image/document clones.
+- Separate per-sample peak memory, total document work and deadlines. Schedule by expected benefit/cost so early pages do not consume all additional work.
+- For documents above 64 MiB of encoded payload, study replacing candidate objects only and sequential-write validation. This depends on storage-path validation; initial releases can expand eligibility feature by feature without promising every limit disappears at once.
+- Add cancellation boundaries in real tasks. Distinguish noninterruptible FFI calls from soft deadlines. Retain desktop worker timeouts and termination.
+- Cache usage relationships/parsing first, invalidating on graph changes. Bound decoded-cache bytes rather than accumulating all page pixels.
 
-验收：跨越当前 4 MiB 单图与 16 MiB 文档工作门槛的合法样本能获得有效候选；测量总耗时、峰值内存和取消延迟，避免把峰值内存优化误称为最终文件更小。
+Acceptance: valid samples beyond the current 4 MiB per-image and 16 MiB document-work thresholds receive useful candidates. Measure time, peak memory and cancellation delay; lower peak memory does not itself mean a smaller PDF.
 
-### 4. 精确资源共享与有限收尾，P1
+### 4. Exact resource sharing and bounded cleanup — P1
 
-目标：共享样本相同、编码不同的图片及资源，并减少重复解码。
+Goal: share identical samples/resources with different encodings and avoid repeated decoding.
 
-- 图片使用规范化后的原始分量 / 位深 / 尺寸与完整颜色、Decode、遮罩语义核对，扩大 16 位、特殊颜色和受支持编码链的共享范围。不能只比较显示成 RGB 后的像素。
-- 非图片先限 FontFile2、ICC、ToUnicode 等可解释叶子资源；解码字节完全相同，相关语义字典也相同才合并。保留 ICC N / Range / Alternate、字体程序长度及映射含义。
-- 哈希仅作索引，命中后核对完整数据；有界缓存避免对同一候选反复解码。不同字体子集、交互身份、标签 Form 不靠外观相同合并。
-- 编码规范化后仅做有限结构收尾与清理，不重跑有损图片处理；按完整文件选择方案并回退。
+- Compare normalized raw components, bit depth, dimensions and complete color/Decode/mask semantics. Expand sharing to 16-bit images, special colors and supported chains. RGB appearance alone is insufficient.
+- Initially restrict non-image sharing to interpretable leaves such as FontFile2, ICC and ToUnicode. Merge only identical decoded bytes with matching semantic dictionaries, preserving ICC N/Range/Alternate, font-program lengths and mapping meaning.
+- Use hashes as indexes and compare full data on a match. Bounded caches avoid repeated decoding. Do not merge different subsets, interactive identities or tagged Forms merely because they look alike.
+- After encoding normalization, perform only bounded structural cleanup; never rerun lossy image processing. Select and fall back using complete-file comparisons.
 
-验收：等价编码资源可共享，反相 Decode、ICC Range、专色函数或不同标签身份等反例不能误合并；跨页测试覆盖最后一页及共享对象。
+Acceptance: equivalent encodings share safely; inverted Decode, ICC Range, spot-color functions and distinct tagged identities do not merge. Cross-page tests include the final page and shared objects.
 
-### 5. 桌面整页图片模式的画质与连续任务，P1，独立验收
+### 5. Desktop full-page image quality and consecutive tasks — P1, separate acceptance
 
-目标：改善实际桌面导出的细字和图表，不把 CLI 结果代替桌面结果。
+Goal: improve small text/charts in actual desktop output, with desktop evidence separate from CLI results.
 
-- 在保持最终像素尺寸的前提下，对照 1 倍直接渲染与 2 倍渲染后缩小；评估原生 Canvas 与明确重采样路径。样本包括细字、彩色文字、线图、扫描照片、批注及透明内容。
-- 相同 JPEG quality 数值不能证明不同处理链画质相同；同时比较细字区域、边缘 / 色彩误差及完整文件大小。保留已验证桌面基线，仅在质量与成本均符合门槛时采用新方案。
-- 预算不足时保持原 1 倍路径，输出尺寸不变。两种候选从原页面生成，避免再次压缩上一份有损 PDF。
-- 页像素转换 / IPC 分块和内存复用，继续保留可用时 scheduler.yield 与回退；测量副作用后再决定工作线程方案。
-- 复核固定整份 120 秒渲染限制，先用长文档确定总截止、单页无进展超时和用户取消的合理策略；不能靠无限延长超时掩盖停滞。
-- 在真实 Tauri IPC 下连续处理多份文档，覆盖取消后再开始、失败后的清理与 Windows WebView2 / macOS WKWebView。
+- At unchanged final dimensions, compare direct 1× rendering against 2× rendering/downsampling; evaluate native Canvas and explicit resampling. Cover fine/colored text, line charts, scanned photos, annotations and transparency.
+- Equal JPEG quality numbers do not establish equal quality across pipelines. Compare fine-text regions, edge/color errors and complete-file size. Retain the verified desktop baseline and adopt alternatives only when quality and cost gates pass.
+- Fall back to 1× when over budget without changing output dimensions. Generate both candidates from the original page, not a previous lossy PDF.
+- Chunk pixel conversion/IPC and reuse memory. Retain scheduler.yield where available and its fallback; assess side effects before choosing workers.
+- Review the fixed 120-second document-render limit using long documents. Determine total deadlines, per-page no-progress timeouts and cancellation behavior; unlimited timeouts must not conceal stalls.
+- Process multiple documents consecutively through real Tauri IPC, covering cancellation/restart, failure cleanup, Windows WebView2 and macOS WKWebView.
 
-验收：每页仍只有一张独立图片；渲染的字段 / 批注按现有约定正确处理；同一档位的体积、细节与耗时相对桌面基线可解释。尚未通过 Windows 实机前不宣称跨平台渲染验收完成。
+Acceptance: each page still contains one independent image, with fields/annotations handled as promised. Explain same-preset size, detail and time relative to the desktop baseline. Do not claim cross-platform rendering acceptance before Windows device testing.
 
-[PDF.js 官方示例](https://mozilla.github.io/pdf.js/examples/) 将页面 viewport 和 Canvas 输出缩放分别控制。此处讨论的是导出算法的固定尺寸实验，不能将屏幕 devicePixelRatio 当作导出尺寸规则。
+[PDF.js examples](https://mozilla.github.io/pdf.js/examples/) control page viewport and Canvas output scaling separately. These are fixed-dimension export experiments; screen devicePixelRatio is not an export-sizing rule.
 
-### 6. CMYK / YCCK JPEG 系数优化，P1，独立色彩回归
+### 6. CMYK/YCCK JPEG coefficient optimization — P1, separate color regression
 
-当前 jpeg_lossless.rs 限 1 / 3 分量，已有原生 CMYK Flate 支持不等于 CMYK JPEG 已优化。后续通过系数重编码保留量化表、采样、尺寸和系数，同时保留 Adobe APP14、ICC、PDF Decode / ColorTransform 语义；不经过 RGB 转换，不只放开四分量判断。建立正常 / 反相 CMYK、YCCK、不同 APP14 与参数组合的多阅读器测试。
+jpeg_lossless.rs currently accepts 1/3 components. Native CMYK Flate support does not imply CMYK JPEG optimization. Coefficient re-encoding should preserve quantization tables, sampling, dimensions and coefficients plus Adobe APP14, ICC and PDF Decode/ColorTransform semantics. Avoid RGB conversion; simply allowing four components is insufficient. Add multireader tests for normal/inverted CMYK, YCCK, APP14 variants and parameter combinations.
 
-[MozJPEG 官方说明](https://github.com/mozilla/mozjpeg/blob/master/usage.txt) 解释了 jpegtran 的系数域变换；它是实现路线依据，不是本项目四分量 PDF 兼容性已通过的证明。
+[MozJPEG usage documentation](https://github.com/mozilla/mozjpeg/blob/master/usage.txt) explains jpegtran coefficient-domain transforms. This supports the implementation approach, not a claim that this project's four-component PDF compatibility already passed.
 
-### 7. 自动字体使用收集与子集，P1，字体占比大的文件优先获益
+### 7. Automatic font usage and subsetting — P1, most useful for font-heavy files
 
-当前 subset_cid_experiment.rs 仍依赖人工给 CID -> GID 清单，不是产品能力。首版限定受支持的 CIDFontType2、Identity-H 和明确 CIDToGIDMap，自动跟踪 Tf / Tj / TJ、q / Q、Contents 数组及 Form 的资源作用域。按实际字符码、CID 和 GID 收集，保留复合字形、hinting、宽度、ToUnicode 与原文字字符码；重新编号时同步映射。编辑字段及共享字体保留未来输入所需字形，未知 CMap / 竖排 / CFF 先跳过。
+subset_cid_experiment.rs still requires a manual CID → GID list and is not product functionality. Initially limit support to CIDFontType2, Identity-H and explicit CIDToGIDMap. Track Tf/Tj/TJ, q/Q, Contents arrays and Form resource scopes automatically. Collect actual character codes, CIDs and GIDs; retain composite glyphs, hinting, widths, ToUnicode and original text codes. Update maps when renumbering. Preserve glyphs needed for future input in editable fields/shared fonts; skip unknown CMaps, vertical writing and CFF initially.
 
-验收：多语言字形、文本提取 / 复制、位置与编辑字段正常；字体程序确实缩小且完整文件获益。先延续已有 Rust subsetter 路线。[HarfBuzz 子集 API](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h) 提供字形集合与保留 GID 的参考接口，但不能替代 PDF 使用关系分析。
+Acceptance: multilingual glyphs, extraction/copying, positioning and editable fields remain correct; font programs and complete files shrink. Continue the existing Rust subsetter approach. [HarfBuzz's subset API](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h) provides glyph-set/retained-GID reference interfaces, but does not replace PDF usage analysis.
 
-### 8. 矢量状态 / Form 与透明图，P2，分开推进
+### 8. Vector state/Forms and transparency — P2, separate workstreams
 
-- 矢量：跟踪已知图形状态，删除确实重复的颜色 / 线宽等赋值；跳过不能解释的状态。cm 累乘、当前路径、裁剪与文字位置不能按相同字面删除。
-- Form：只对调用次数、BBox / Matrix / 资源作用域与当前路径可证明安全的简单 Form 尝试单次展开或复用，透明组 / 标签 / 外观另作保护。此前 PDF.js 出现像素变化的描边复用反例继续保留。
-- 透明图：先在原网格精确编码主图与遮罩；再单独研究均衡 / 更小的成对降采样，处理预乘、Matte、不同网格、非白底与边缘。保真不改变尺寸。此前删除看似全不透明 SMask 的失败反例不能移除。
+- Vectors: track known graphics state and remove genuinely redundant color/line-width assignments. Skip unknown state. Identical literals do not justify deleting cumulative cm transforms, current paths, clipping or text positioning.
+- Forms: attempt single-use inlining/reuse only when call counts, BBox/Matrix/resource scope and current-path safety are provable. Protect transparency groups, tags and appearances separately. Retain the earlier PDF.js pixel-difference counterexample for stroke reuse.
+- Transparency: encode image/mask exactly on their original grids first, then separately study paired downsampling for Balanced/Smaller, accounting for premultiplication, Matte, different grids, nonwhite backgrounds and edges. Fidelity retains dimensions. Keep failed examples involving apparently opaque SMask removal.
 
-这些候选必须各自通过语义与渲染验收，不能将所有矢量复用 / 遮罩处理统一标为严格无损。
+Each candidate must pass semantic and rendering acceptance independently. Vector reuse and mask processing cannot all be labeled strictly lossless.
 
-## 后续候选实验，暂不优先实施
+## Later experiments, lower priority
 
-- 精确 Indexed 调色板重排 / 等价位深选择：现有调色板按首次遇到颜色编号；可研究等价索引排列是否改善压缩，原方案保留，不量化颜色。
-- 对象流分组与压缩配置：已有排列候选，但组大小 / 压缩级别主要由对象数量两档决定。可以尝试少量配置，需先证明完整文件收益值得额外写出耗时。
-- 有收益估算的 Zopfli 调度：已经有严格预算，不盲目增加迭代次数；考虑选择更可能获益的流，避免大而不合格的流占据搜索名额。
-- 内联图片外置：只对重复、能省完整文件的情况实验；此前单张外置变大的反例保留。
+- Exact Indexed palette reordering/equivalent bit-depth selection: current indices follow first color occurrence. Study compression under equivalent permutations, retaining the original and never quantizing colors.
+- Object-stream grouping/compression: ordering candidates exist, but group sizes/levels mainly use two object-count tiers. Try a few configurations only after proving complete-file gains justify extra writes.
+- Benefit-aware Zopfli scheduling: retain strict budgets instead of blindly raising iterations. Favor promising streams so large ineligible streams do not occupy search slots.
+- Inline-image externalization: experiment only for repetition with complete-file savings. Retain the counterexample where externalizing one image grows the file.
 
-已有 Brotli / 新 JPEG 配置实验没有新的兼容性或质量证据，本次不建议直接换默认编码器。多层 MRC 与一页一张图片的模式约定不一致，本计划不纳入。
+Existing Brotli/new-JPEG experiments add no new compatibility/quality evidence here, so changing the default encoder is not recommended. Multilayer MRC conflicts with the one-image-per-page contract and is excluded.
 
-## 每批共同验收与执行边界
+## Common acceptance and execution boundaries
 
-1. 比较正确的 0.1.19 基线和新增完整 PDF，不仅比较 stream；无法通过或更大的可选候选回退。
-2. 精确方案检查原始分量 / JPEG 系数 / 解码流及对象关系，在三种阅读器内分别核对像素与文字几何；新增多页用例检查所有页面，另覆盖不同缩放与抗锯齿设置。
-3. 保留模式继续保持文字和矢量类型。Fidelity 保持原图尺寸与既有质量参数，但不宣称整个文件严格无损；底层 Lossless 禁止有损候选。
-4. 图片模式继续一页一张图片；桌面验证以真实生产渲染路径为准，CLI 与桌面分别记录。
-5. 同时记录体积、质量、耗时、峰值内存、预算跳过与取消延迟；自建语料补边界，已有真实原件可用时补完整对照，不用特殊样本承诺普遍压缩比例。
+1. Compare complete PDFs against a correct 0.1.19 baseline, not just streams. Reject invalid or larger optional candidates.
+2. Exact strategies check components/JPEG coefficients/decoded streams and object relationships. Compare pixels and text geometry within each of three readers. Check every page of new multipage samples, plus different zoom/antialiasing settings.
+3. Preserve mode keeps text/vector types. Fidelity retains dimensions and quality parameters without claiming whole-file strict losslessness. Low-level Lossless forbids lossy candidates.
+4. Image mode stays one image per page. Validate the real desktop production-render path and record CLI/desktop separately.
+5. Record size, quality, time, peak memory, budget skips and cancellation latency. Use synthetic coverage for boundaries and full real-file comparisons when originals are available; special samples do not establish general compression ratios.
 
-建议下一批仅实施步骤 0 / 1 / 2：统一保护与多页验证、前置解码入口、超过 256 色的 RGB 精确编码候选。随后步骤 3 / 4 处理规模与共享，步骤 5 单列桌面画质；CMYK、字体、矢量与遮罩各自独立提交验证结果。当前这一份只是计划，尚未实施上述改动。
+The next batch should implement only steps 0/1/2: unified protection and multipage validation, earlier decoding, and exact RGB candidates above 256 colors. Steps 3/4 then cover scale/sharing; step 5 separately addresses desktop quality. CMYK, fonts, vectors and masks each need their own results. This document is a plan; the changes above were not implemented by this review.

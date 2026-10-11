@@ -1,83 +1,84 @@
-# Squeeze PDF 实施计划
+# Squeeze PDF implementation plan
 
-日期：2026-10-05  
-状态：Rust 引擎、CLI、桌面 MVP 与两种输出模式已实现；0.1.4 增加重复矢量轮廓复用；保留模式结合路径精度、资源共享与图片优化，桌面位图由本地 PDF.js 渲染。
+Date: 2026-10-05.
 
-## 已确认需求
+Status at the time of this plan: the Rust engine, CLI, desktop MVP and both output modes were implemented. Version 0.1.4 added repeated vector-outline reuse. Preserve mode combines path precision, resource sharing and image optimization; desktop image mode uses local PDF.js rendering. This is a historical plan; see the [README](README.md) for current behavior and limits.
 
-- Windows 与 macOS 桌面应用；2026-10-10 确定自有代码采用 Apache-2.0 开源，允许商业使用及闭源再发行，第三方组件继续适用原许可证。
-- 默认完全离线，用户无需安装外部 PDF 工具。
-- 自研 Rust 压缩策略，使用基础库解析与渲染；允许接入 MozJPEG。
-- 两种独立输出模式：保留原有文字和矢量；每页转换为一张图片并组成 PDF。
-- 首版支持文件队列、画质选择、输出目录、取消重试、结果报告和前后预览。
+## Confirmed requirements
 
-## 输出模式与画质
+- Windows and macOS desktop application. On 2026-10-10, Apache-2.0 was selected for original code, allowing commercial use and closed-source redistribution; third-party components retain their original licenses.
+- Offline processing by default, without requiring users to install external PDF tools.
+- Original Rust compression strategies with foundational parsing/rendering libraries; MozJPEG integration is allowed.
+- Two independent output modes: retain original text and vectors, or convert each page to one image and assemble a PDF.
+- Initial release: file queue, quality selection, output directory, cancellation/retry, result reports and before/after preview.
 
-| 输出模式     | 内容行为                                               | 三档策略                                                                                                               |
-| ------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 保留原始内容 | 原有文字、字体和矢量仍保留；优化路径、结构与受支持图片 | 三个档位均启用路径精度与重复轮廓优化；保真：原分辨率 / JPEG 95；均衡 / 更小：图片分别为质量 85 / 200 DPI、50 / 100 DPI |
-| 整页转图片   | 按可见区域与页面旋转渲染，每页只有一张独立图片         | 清晰：300 DPI / Flate；均衡：宽 1400 px / JPEG 72；更小：宽 1000 px / JPEG 60                                          |
+## Output modes and quality
 
-保留原始内容模式只导出更小的结果。图片模式属于用户明确选择的内容转换，校验通过后即导出，即使更大也如实报告。
+| Output mode               | Content behavior                                                                      | Three presets                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Preserve original content | Keeps text, fonts and vectors; optimizes paths, structure and supported images        | All presets enable path precision and repeated-outline optimization. Fidelity: original image resolution / JPEG 95. Balanced: JPEG 85 / 200 DPI. Smaller: JPEG 50 / 100 DPI. |
+| Full-page images          | Renders the visible area with page rotation; each page contains one independent image | High quality: 300 DPI / Flate. Balanced: 1400 px wide / JPEG 72. Smaller: 1000 px wide / JPEG 60.                                                                            |
 
-图片模式不保留可选择文字、矢量路径、链接、书签等原始对象；首版对表单、批注、附件及缺少非标准字体的文件拒绝转换。清晰档位的“无损”仅针对已渲染的图片像素，不能恢复原始矢量。
+Preserve mode exports only smaller results. Image mode is an explicitly requested content conversion and exports validated results even when larger, reporting the size accurately.
 
-## 已实现的技术结构
+At this stage, image mode did not retain selectable text, vector paths, links or bookmarks, and rejected forms, annotations, attachments and missing nonstandard fonts. “Lossless” in High quality referred only to rendered image pixels and could not restore original vectors. Later support changes are documented in the README.
 
-| 层        | 实现                                                                            |
-| --------- | ------------------------------------------------------------------------------- |
-| 桌面      | Tauri 2，原生选择器、独立 worker、超时及取消、受限路径访问                      |
-| 界面      | React + TypeScript + Vite，模式和画质分开选择，串行队列                         |
-| Rust 引擎 | `squeeze-core`，策略、预检、文件保护及校验                                      |
-| PDF 读写  | lopdf，对象和对象流读写                                                         |
-| 图片处理  | image + 静态 MozJPEG + flate2 Rust 后端，受限类型解码、Lanczos 降采样、候选比较 |
-| 整页渲染  | 桌面 PDF.js 逐页渲染，Rust 编码及重建；CLI 默认 hayro                           |
-| 预览      | PDF.js，本地打包 CMap、字体与 WASM                                              |
-| CLI       | `squeeze-cli`，两种模式、三档策略、JSON 报告和取消                              |
-| 构建      | 固定 Rust 1.92.0 与锁定依赖；三个原生 CI 目标，第三方通知随包附带               |
+## Implemented architecture
 
-不从零重写 PDF 语法、JPEG 或字体渲染标准；qpdf 与 Ghostscript 不作为运行依赖。
+| Layer               | Implementation                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Desktop             | Tauri 2, native dialogs, separate worker, timeouts/cancellation and restricted path access                    |
+| Interface           | React + TypeScript + Vite, independent mode/quality selection, sequential queue                               |
+| Rust engine         | `squeeze-core`: strategies, preflight, file protection and validation                                         |
+| PDF I/O             | lopdf: objects and object streams                                                                             |
+| Images              | image + static MozJPEG + flate2 Rust backend; restricted decoding, Lanczos downsampling, candidate comparison |
+| Full-page rendering | Desktop PDF.js renders each page; Rust encodes and rebuilds the PDF. CLI defaults to hayro.                   |
+| Preview             | PDF.js with locally bundled CMaps, fonts and WASM                                                             |
+| CLI                 | `squeeze-cli`: two modes, three presets, JSON reports and cancellation                                        |
+| Build               | Pinned Rust 1.92.0 and locked dependencies; three native CI targets; bundled third-party notices              |
 
-## 文件保护与支持范围
+The project does not reimplement PDF syntax, JPEG or font-rendering standards from scratch. qpdf and Ghostscript are not runtime dependencies.
 
-处理流程：
+## File protection and support scope
 
-`预检 → 读取原件并记录哈希 → 优化或整页渲染 → 写临时候选 → 重新读取校验 → 检查原件变化 → 无覆盖提交`
+Processing pipeline:
 
-- 原件只读，输出文件同名自动编号，已有文件不覆盖。
-- 256 MiB 文件、64 MiB 单流、2400 万像素上限；限制对象及分析操作数。
-- 含签名、加密（含空密码）、PDF/A、XFA、组合包的文件跳过。
-- 原始内容模式对表单、批注与附件采用保真策略。
-- 有效 DPI 分析覆盖资源继承、共享图片、Form Matrix、UserUnit；未覆盖的路径不降采样。
-- 支持默认范围的 1 / 3 通道 ICC 图和常规灰度软遮罩；原 ICC 配置与遮罩像素保持。CMYK、Matte、硬遮罩等未验证类型保留原始数据。
-- 图片模式限制每页位图尺寸，按页释放渲染缓存；处理 CropBox、Rotate、UserUnit 与页序。桌面按最终像素直接渲染，按页面比较单张 JPEG 与无损 Flate；完全灰度页使用单通道。
-- 桌面使用独立进程，渲染与编码分别 120 秒超时，正常取消后清理临时文件。
-- 总内存预算、所有畸形 PDF 的严格拒绝、强制退出后的恢复清理尚待完成。
+`Preflight → Read original and record hash → Optimize or render pages → Write temporary candidate → Reopen and validate → Check original for changes → Commit without overwriting`
 
-## 当前验证
+- Originals are read-only; output names are numbered automatically and existing files are never overwritten.
+- At this stage: 256 MiB file limit, 64 MiB per decoded stream, 24 million pixels per image; object and analysis-operation limits.
+- Digitally signed, encrypted (including empty-password), PDF/A, XFA and portfolio files are skipped.
+- Preserve mode treats forms, annotations and attachments conservatively.
+- Effective-DPI analysis covers inherited resources, shared images, Form Matrix and UserUnit; unanalyzed paths are not downsampled.
+- Restricted default-range 1-/3-channel ICC images and ordinary grayscale soft masks are supported. Original ICC profiles and mask pixels are retained. Unverified CMYK, Matte and hard-mask types retain their original data.
+- Image mode limits per-page bitmap dimensions and releases render caches page by page; it handles CropBox, Rotate, UserUnit and page order. The desktop renders directly at final dimensions and compares a single JPEG against lossless Flate for each page. Entirely grayscale pages use one channel.
+- The desktop uses a separate process. Rendering and encoding each have a 120-second timeout; normal cancellation removes temporary files.
+- A total memory budget, strict rejection of all malformed PDFs and recovery cleanup after forced exit remain outstanding.
 
-已完成 Rust 自动化测试、macOS arm64 编译、生成样本压缩和独立 Poppler 渲染检查。详细数据与桌面流程验证记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+## Validation at this stage
 
-合成样本用于发现实现问题，不能替代真实 PDF 兼容性测试，也不能据此承诺统一压缩率。
+Rust automated tests, macOS arm64 compilation, generated-sample compression and independent Poppler rendering checks were completed. See [docs/VALIDATION.md](docs/VALIDATION.md) for measurements and desktop-flow validation records.
 
-## 接下来推进
+Synthetic samples help find implementation issues but cannot replace real-PDF compatibility tests or establish a universal compression ratio.
 
-| 阶段           | 工作                                                                      | 验收                                                     |
-| -------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 真实文档回归   | 收集 40–60 份有使用许可的中文、Office、扫描、图纸、复杂字体与透明图片文件 | 两种模式按类别记录兼容性、体积、画质、耗时与峰值内存     |
-| 资源与异常处理 | 覆盖总内存预算、磁盘不足、只读目录、崩溃与断电恢复                        | 原件哈希不变；无错误输出或遗留误导性文件；取消和重试可靠 |
-| 双平台验证     | 执行 Windows x64、macOS arm64 / Intel 原生 CI 与干净环境安装测试          | 离线启动、队列、两种模式、预览、导出及卸载通过           |
-| 商业发布准备   | 核对实际分发依赖、确定自身授权条款、签名、公证、版本与校验值              | Windows 安装包与 macOS DMG 可按公开分发流程交付          |
-| Beta 反馈      | 小规模真实用户试用，重点检查图片模式小字、颜色和复杂页面                  | 问题可复现并加入回归集；明确稳定支持范围                 |
+## Next steps recorded in this plan
 
-优先完成上述验证，再考虑更多颜色与遮罩类型、加密处理、目标大小、OCR、自动更新或商业激活。
+| Stage                          | Work                                                                                                   | Acceptance                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Real-document regression       | Collect 40–60 licensed Chinese, Office, scanned, drawing, complex-font and transparent-image documents | Record compatibility, size, quality, time and peak memory by category in both modes              |
+| Resources and failures         | Total memory budget, disk full, read-only directories, crashes and power-loss recovery                 | Original hashes unchanged; no invalid or misleading leftover output; reliable cancellation/retry |
+| Platform validation            | Native Windows x64 and macOS arm64/Intel CI plus clean-environment installation tests                  | Offline launch, queue, both modes, preview, export and uninstall pass                            |
+| Commercial release preparation | Review distributed dependencies, project terms, signing, notarization, versions and checksums          | Windows installer and macOS DMG ready for public distribution                                    |
+| Beta feedback                  | Small real-user trial focused on small text, colors and complex pages in image mode                    | Reproducible issues added to regression coverage; stable support scope defined                   |
 
-## 发布门槛
+This plan prioritized those checks before additional color/mask types, encryption, target-size output, OCR, automatic updates or commercial activation. Later releases may implement individual items; consult current documentation.
 
-1. 支持范围内的文档输出可打开；页数、可见页面尺寸与顺序正确。
-2. 原始内容模式保留文字、矢量、表单值、批注、书签和附件；保真档位逐页独立渲染比对。
-3. 图片模式每页恰好一张图，无残留文字或矢量对象；旋转、裁剪、字体及颜色经过独立阅读器检查。
-4. 原件在成功、失败、取消时哈希不变，同名输出不覆盖；报告准确显示缩小或增加量。
-5. 有损输出人工检查小字、表格、印章、条码及颜色；图像差异指标只作辅助。
-6. 异常文件、内存压力、超时与取消不拖垮队列。
-7. Windows 与两个 macOS 架构完成安装回归；公开分发前完成签名与许可核对。
+## Release gates
+
+1. Supported outputs open correctly and retain the expected page count, visible dimensions and order.
+2. Preserve mode retains text, vectors, form values, annotations, bookmarks and attachments; Fidelity receives independent page-by-page render comparisons.
+3. Image mode contains exactly one image per page and no residual text/vector objects; independent readers check rotation, crop, fonts and colors.
+4. Original hashes remain unchanged on success, failure and cancellation; existing outputs are not overwritten; reports correctly show savings or growth.
+5. Review small text, tables, stamps, barcodes and colors manually in lossy outputs; image-difference metrics are supplementary.
+6. Invalid files, memory pressure, timeouts and cancellation do not bring down the queue.
+7. Windows and both macOS architectures complete installation regression; signing and licensing are reviewed before public distribution.

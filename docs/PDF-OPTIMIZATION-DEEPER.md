@@ -1,131 +1,131 @@
-# 通用 PDF 压缩：进一步研究与验证
+# General PDF compression: deeper research and validation
 
-日期：2026-10-07。产品基线：0.1.15。本文补充 [上一份研究](PDF-OPTIMIZATION-NEXT.md)，重点记录新的代码缺口、完整文件实验及失败反例。
+Date: 2026-10-07. Product baseline: 0.1.15. This supplements the [previous review](PDF-OPTIMIZATION-NEXT.md) with additional code gaps, complete-file experiments and failed counterexamples.
 
-后续实施状态：前三项 P0 已在 0.1.16 进入受限默认路径，并增加严格无损图片候选；实现、预算与实际新旧数字见 [验证记录](VALIDATION.md)。0.1.19 进一步加入过滤器链、短 Contents 与完整回退，见 [验证记录](VALIDATION.md)。下面保留原研究数字与结论，P1 图形状态、Form 展开及成对降采样仍未实施。
+Later implementation: the first three P0 items entered restricted default paths in 0.1.16, together with strict-lossless image candidates. Version 0.1.19 added chains, short Contents and complete fallback. See the [validation record](VALIDATION.md) for implementation, budgets and actual comparisons. The original research figures remain below; P1 graphics state, Form inlining and paired downsampling were not implemented at this point.
 
-本次只增加开发实验及报告，没有修改运行时引擎、档位、DPI、图片质量或发布包。macOS arm64 的 0.1.15 DMG SHA-256 仍为 `bd90a0b0f791cc493c10d09b8b387ae0f22a53d741b5602480026ecb621da236`。Windows、macOS Intel 与 Acrobat 对照没有新增验证。
+This research added development experiments/reports only, without changing the runtime engine, presets, DPI, quality or packages. The macOS arm64 0.1.15 DMG retained SHA-256 `bd90a0b0f791cc493c10d09b8b387ae0f22a53d741b5602480026ecb621da236`. No additional Windows, macOS Intel or Acrobat comparisons were performed.
 
-## 新发现与优先级
+## Findings and priorities
 
-| 优先级   | 新方向                                     | 当前缺口                                                                            | 本次证据与状态                                                                             |
-| -------- | ------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| P0       | 原始颜色分量的精确重编码                   | 图片通路排除 16 位及 Lab、DeviceN 等颜色；通用 Flate 重压缩没有充分利用图片行相关性 | 16 位 RGB、8 位 Lab、两分量 DeviceN 样本保留原始样本字节，三阅读器像素相同；可进入实现阶段 |
-| P0       | 识别确实等于默认值的 Decode                | 当前只要出现 Decode 就跳过相关图片优化，包括 RGB 的默认映射                         | 一个 RGB 默认 Decode 样本解锁现有 Indexed 编码，完整结果 5,737 → 1,790 B，三阅读器相同     |
-| P0       | 对象编号、代数与写入布局                   | 删除对象后没有压紧编号；对象流按编号打包，非零代数对象不能进入当前 lopdf 对象流     | 两份现有保真结果再少 23,471 / 102,015 B；受控非零代数样本获益更大；必须保留原布局候选      |
-| P1       | 精简重复的图形状态赋值                     | 当前内容处理没有完整的状态跟踪，重复线宽、颜色、端点、虚线仍写入                    | 受限描边样本 6,229 → 5,523 B，三阅读器相同                                                 |
-| P1       | 按调用次数选择展开或复用 Form              | 当前重点是封闭纯色填充轮廓复用；单次使用的普通 Form 仍有独立对象和流开销            | 单次使用 Form 样本 43,018 → 14,709 B，三阅读器相同；更广描边块复用未通过严格无损门槛       |
-| P1，分步 | 保留遮罩的图片优化；均衡／更小的成对降采样 | 现有通路要求遮罩与主图同网格、无 Matte；含 SMask 的图片一律跳过降采样               | 缺口已确认，成对降采样尚未验证；直接删除全不透明遮罩已有失败反例                           |
-| 配套     | 有预算的优化收尾与候选选择                 | 解码图片共享、资源清理主要在前段，后续归一化可能产生新的共享机会                    | 属于代码顺序分析；尚未证明在真实文件上有额外收益；不得循环重新量化 JPEG                    |
+| Priority   | Direction                                                             | Gap at the time                                                                                                     | Evidence/status                                                                                                                       |
+| ---------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| P0         | Exact raw-component re-encoding                                       | Images exclude 16-bit, Lab, DeviceN and other colors; generic Flate insufficiently exploits row correlation         | 16-bit RGB, 8-bit Lab and two-component DeviceN retained raw samples with identical pixels in three readers; ready for implementation |
+| P0         | Recognize truly default Decode                                        | Any Decode currently blocks relevant optimization, including default RGB mapping                                    | An RGB sample unlocked Indexed: 5,737 → 1,790 B, identical in three readers                                                           |
+| P0         | Object numbering, generations and layout                              | No compaction after cleanup; streams group by number; nonzero generations cannot enter current lopdf object streams | Two Fidelity results saved another 23,471 / 102,015 B; larger synthetic nonzero-generation gains; retain original-layout candidate    |
+| P1         | Redundant graphics-state assignments                                  | No complete state tracking; repeated widths/colors/caps/dashes remain                                               | Restricted stroke sample: 6,229 → 5,523 B, identical in three readers                                                                 |
+| P1         | Inline or reuse Forms based on call counts                            | Existing reuse focuses on closed solid fills; single-use ordinary Forms still incur object/stream overhead          | Single-use sample: 43,018 → 14,709 B, identical in three readers. Broader stroke reuse failed strict losslessness.                    |
+| P1, staged | Mask-preserving optimization and paired Balanced/Smaller downsampling | Masks must match the main grid and have no Matte; SMask blocks downsampling                                         | Gap confirmed; paired downsampling unverified. Apparently opaque-mask deletion has counterexamples.                                   |
+| Supporting | Budgeted cleanup/candidate selection                                  | Decoded sharing/cleanup occur early; later normalization can expose more sharing                                    | Pipeline analysis only, without real-file benefit evidence; do not repeatedly quantize JPEG                                           |
 
-这些方向补充已有的编码链、短 Contents 合并、严格无损图片通路、自动字体子集等计划。没有把那些尚未实施的项目重新算作新能力。
+These supplement earlier chains, short Contents, strict-lossless images and automatic fonts rather than counting unimplemented plans as new capabilities.
 
-## 1. 无须转换颜色，也能压缩特殊图片
+## 1. Compress special images without converting their colors
 
-`images.rs::decode` 目前主要走 `DynamicImage` 的受支持颜色；16 位图片在入口被排除，`color_channels` 也不接受 Lab、Separation、DeviceN、CalRGB 等空间。第五轮增加的精确 CMYK 通路已有价值，但还没有形成通用的原始分量通路。
+`images.rs::decode` mainly uses supported `DynamicImage` colors. The entry excludes 16-bit images, and `color_channels` rejects Lab, Separation, DeviceN, CalRGB and others. The fifth-round exact CMYK path is useful but is not a general raw-component path.
 
-可以把“编码原始分量”和“解释成 RGB 画面”分开。对确定分量数、位深、行宽及编码链的图片，精确恢复原始分量字节，再尝试 PNG 行预测或适用的 TIFF Predictor 2；保持 ColorSpace、Decode、ICC、专色名称、tint function、宽高及位深。这样不需要改变专色或色彩管理，也不需要降低分辨率。
+Separate component encoding from RGB interpretation. For known component counts, bit depths, row sizes and chains, recover raw bytes exactly, then try PNG predictors or eligible TIFF Predictor 2. Preserve ColorSpace, Decode, ICC, spot-color names, tint functions, dimensions and bit depth, without altering spot colors, color management or resolution.
 
-| 受控样本       | 0.1.15 直接处理 | 先作候选变换，再由同版处理 | 原始分量 | Poppler／CoreGraphics／PDF.js |
-| -------------- | --------------: | -------------------------: | -------- | ----------------------------- |
-| 16 位 RGB 渐变 |       915,963 B |                   28,235 B | 完全相同 | 像素相同                      |
-| 8 位 Lab 渐变  |       249,702 B |                    2,577 B | 完全相同 | 像素相同                      |
-| 两分量 DeviceN |         5,266 B |                    2,255 B | 完全相同 | 像素相同                      |
+| Controlled sample     | Direct 0.1.15 | Candidate transform, then same version | Components | Poppler/CoreGraphics/PDF.js |
+| --------------------- | ------------: | -------------------------------------: | ---------- | --------------------------- |
+| 16-bit RGB gradient   |     915,963 B |                               28,235 B | Identical  | Identical pixels            |
+| 8-bit Lab gradient    |     249,702 B |                                2,577 B | Identical  | Identical pixels            |
+| Two-component DeviceN |       5,266 B |                                2,255 B | Identical  | Identical pixels            |
 
-本次候选使用 PNG Up 行预测；16 位 RGB 保留大端字节。通过 pypdf 反解核对全部分量字节，三种阅读器分别在 200 DPI 对比同一阅读器内的新旧像素。颜色空间和专色函数保持原样。
+Candidates used PNG Up; 16-bit RGB stayed big-endian. pypdf checked every component byte, and each reader compared its own before/after pixels at 200 DPI. Color spaces and spot-color functions were unchanged.
 
-这些是刻意构造的、有行相关性的样本，不能把 96% 或 98% 的节省推广到普通照片。DeviceN 样本的两个分量中有一个不参与显示，虽仍精确保留其字节，但不代表任意印刷专色函数、叠印或多分量文件都已覆盖。16 位 Gray、CalGray/CalRGB、Separation、复杂 DeviceN、不同 ICC Range，以及 1/2/4 位行打包仍需新增样本。
+These deliberately row-correlated samples do not imply 96%/98% savings for photographs. One DeviceN component did not affect display; preserving its bytes does not cover arbitrary printing spot functions, overprint or multicomponent documents. Add 16-bit Gray, CalGray/CalRGB, Separation, complex DeviceN, ICC Range and 1-/2-/4-bit row packing tests.
 
-实施时先做有界的 raw/Flate 分量路径，复用上一份计划的编码链解析。对乘法溢出、行尾位填充、预测器参数、解码长度、损坏流、递归引用、内存及取消设上限；受保护外观共享图片继续保留原始编码。不能把当前含有 JPEG 有损候选的整套图片函数直接用于 Lossless。
+Start with bounded raw/Flate components and the previous chain parser. Limit overflow, row-end padding, predictor parameters, decoded lengths, corruption, recursive references, memory and cancellation. Appearance-shared protected images keep original encoding. The existing image function includes lossy JPEG and must not be used wholesale for Lossless.
 
-## 2. 默认 Decode 不该阻断全部图片优化
+## 2. Default Decode should not block all optimization
 
-一个图片显式写出 `/Decode [0 1 0 1 0 1]`，并不意味着它真的需要特殊颜色映射。当前代码的 `has(Decode)` 判断过于粗，受控 RGB 样本因此错过已有的精确 Indexed 编码。
+An explicit `/Decode [0 1 0 1 0 1]` need not mean special mapping. The current `has(Decode)` test is too broad: it prevents exact Indexed encoding for a controlled RGB image.
 
-实验只移除已证明为 DeviceRGB 默认值的 Decode；同一个 480 × 320、16 色图片，保真结果从 5,737 降到 1,790 B，三阅读器像素完全相同。不是新增降低 JPEG 质量。
+Removing only a proven DeviceRGB default reduced the same 480 × 320, 16-color Fidelity result from 5,737 to 1,790 B, with identical pixels in all three readers. JPEG quality was not reduced.
 
-PDF.js 也按颜色空间判断 Decode 是否为默认值，再决定是否执行映射；这支持采用语义判断。[PDF.js 图片解码源码](https://github.com/mozilla/pdf.js/blob/master/src/core/image.js)。
+PDF.js also tests whether Decode is default for the color space before applying mapping, supporting a semantic check. [PDF.js image source](https://github.com/mozilla/pdf.js/blob/master/src/core/image.js).
 
-首版可识别 DeviceRGB/Gray/CMYK 的精确默认数组及间接引用。其他颜色必须按各自语义处理：Indexed 的默认上界取决于位深，不能一律套用 hival；ICCBased 的 Range、Lab 的范围、反相 Decode、ImageMask 极性都不能略过。即便保留一个非默认 Decode，原始分量的精确 Flate 重编码仍可能有效；两项优化应独立。
+Initially recognize exact DeviceRGB/Gray/CMYK default arrays and indirect references. Other colors need their own semantics: Indexed's default upper bound depends on bit depth, not universally hival; ICCBased Range, Lab ranges, inverted Decode and ImageMask polarity must remain meaningful. Raw-component exact Flate can still work with nondefault Decode, so these are independent optimizations.
 
-## 3. 写入布局有小而稳定的真实文件收益
+## 3. Small, stable real-file gains from writer layout
 
-现有流程清理对象后直接写入，没有调用 `renumber_objects`。测试文档 A 的 3,321 个存活对象散布到编号 28,492，测试文档 B 的 12,513 个存活对象散布到 41,875。空编号不一定造成很大体积，因为交叉引用流也会压缩；更短的引用数字、对象流头部及相似字典集中存放共同影响最终字节数。
+Current cleanup writes directly without `renumber_objects`. Document A has 3,321 live objects up to number 28,492; Document B has 12,513 up to 41,875. Gaps alone may be cheap because cross-reference streams compress. Shorter references, object-stream headers and clustering similar dictionaries together affect final size.
 
-新增开发示例 `crates/squeeze-core/examples/writer_identity_probe.rs` 比较五种布局：同配置重写、压紧编号、压紧并清零代数、按对象字典类型聚集、按引用频率优先并辅以类型排序。对象流分组大小和压缩级别保持产品当前规则。
+Development example `crates/squeeze-core/examples/writer_identity_probe.rs` compares five layouts: same settings, compact numbering, compact/zero generations, dictionary-type clustering, and reference-frequency priority with type sorting. Object-stream group sizes and levels follow existing product rules.
 
-| 只读输入：0.1.15 已有保真结果 |         输入 |   同配置重写 |     压紧编号 |     类型聚集 | 引用频率优先 |    相对输入额外节省 |
-| ----------------------------- | -----------: | -----------: | -----------: | -----------: | -----------: | ------------------: |
-| 测试文档 A，52 页             |  6,966,379 B |  6,966,387 B |  6,958,557 B |  6,946,185 B |  6,942,908 B |  23,471 B，约 0.34% |
-| 测试文档 B，57 页             | 40,079,726 B | 40,079,734 B | 40,016,435 B | 40,010,215 B | 39,977,711 B | 102,015 B，约 0.25% |
+| Read-only input: existing 0.1.15 Fidelity |        Input | Same settings |      Compact | Type grouping | Reference priority | Additional savings vs input |
+| ----------------------------------------- | -----------: | ------------: | -----------: | ------------: | -----------------: | --------------------------: |
+| Document A, 52 pages                      |  6,966,379 B |   6,966,387 B |  6,958,557 B |   6,946,185 B |        6,942,908 B |            23,471 B, ~0.34% |
+| Document B, 57 pages                      | 40,079,726 B |  40,079,734 B | 40,016,435 B |  40,010,215 B |       39,977,711 B |           102,015 B, ~0.25% |
 
-同配置重写本身增加 8 B，比较时没有把它算成新策略收益。两份输入全部是代数 0，清零代数对它们没有额外收益。
+Same-settings rewriting adds 8 B, which is not counted as a strategy gain. All input generations were zero, so zeroing adds no benefit for these two files.
 
-另建 297 个存活对象、稀疏编号、代数 7 的受控文档：同配置重写 35,442 B，压紧 31,821 B，压紧并清零 9,719 B。当前 lopdf 0.45.0 的 writer 只把代数 0 的合格对象打包进对象流，因此完整重写中的代数归一化值得研究；这不是增量保存时可随意做的修改。依据为已安装依赖的 `src/writer.rs` 与 `src/processor.rs`，可对照 [lopdf 官方源码](https://github.com/J-F-Liu/lopdf)。
+A controlled document with 297 live objects, sparse numbering and generation 7 measured 35,442 B rewritten, 31,821 B compacted and 9,719 B compacted/zeroed. lopdf 0.45.0 packs only eligible generation-zero objects into object streams. Generation normalization deserves investigation for full rewrites, not arbitrary incremental saves. Evidence comes from installed `src/writer.rs`/`src/processor.rs`; see [lopdf source](https://github.com/J-F-Liu/lopdf).
 
-安全与收益验证采用整个存活对象图的双向引用对应：除编号／代数映射外，字典、数组、标量和每个已有流的编码字节保持相同；写出后重新读取再核对。加密及有 ByteRange 的文档在实验中跳过。
+Validation uses bidirectional correspondence across the entire live graph. Apart from number/generation mapping, dictionaries, arrays, scalars and encoded bytes of every existing stream remain identical, including after reopening. Encrypted/ByteRange documents were skipped.
 
-17 类通用样本 × 5 布局，加上两份真实结果和非零代数样本，合计 100 个写出结果通过存活对象图核对。17 个通用最佳候选、真实文件的首／中／末页共 6 页、非零代数样本 1 页，共 24 页完成三阅读器像素比较，全部相同。不是两份真实文件每页都重新渲染。
+Seventeen general sample classes × five layouts, two real results and the nonzero-generation sample produced 100 graph-validated outputs. Three-reader pixel checks covered 17 best synthetic candidates, first/middle/last real pages (six total) and one nonzero-generation page: 24 pages, all identical. This was not every page of the real files.
 
-排序没有统一赢家：资源类小样本中，引用频率排序比同配置重写大 78～116 B；不少小图片样本的所有写出候选仍大于源文件。生产版本必须在预算内保留旧引擎候选和原文件，比较完整文件；不可无条件采用一种排序，也不能把已有对象流启用再次算作新增优化。
+No ordering wins universally: reference-frequency sorting grew some resource samples by 78–116 B against the same-settings rewrite, and all candidates for several small images exceeded their original files. Production must retain the previous engine candidate and original within budget and compare complete files. Existing object streams are not a new optimization.
 
-## 4. 矢量内容应按执行语义精简
+## 4. Simplify vector execution semantics
 
-### 重复状态赋值
+### Redundant state assignments
 
-如果连续绘制每条线都重复设置同样的颜色、线宽、端点、连接及虚线，除了第一次有效设置，其余可能没有作用。本次 600 条描边的受控样本去掉这些赋值后，完整结果从 6,229 降到 5,523 B，三阅读器相同。
+Repeatedly setting identical color, width, caps, joins and dashes before each line can be redundant after the first effective assignment. Removing them in a controlled 600-stroke sample reduced 6,229 to 5,523 B, identical in three readers.
 
-这需要跟踪 q/Q 图形状态、描边／填充颜色空间及 gs 影响。遇到无法解释的操作符或状态应停止精简。`cm` 是矩阵累乘，不能按“同样的数字已经出现过”删除；文字位置、裁剪及绘制指令也不能按相同字符串删除。
+Track q/Q, stroke/fill color spaces and gs effects. Stop simplification on unknown operators/state. cm multiplies matrices and cannot be deleted because its numbers appeared before; repeated text positioning, clipping or drawing strings are not automatically redundant.
 
-MuPDF 的内容过滤实现维护待提交状态与已提交状态，在需要绘制时输出相应状态，是可核对的技术思路；后续采用自有 Rust 实现。[MuPDF 内容过滤源码](https://github.com/ArtifexSoftware/mupdf/blob/master/source/pdf/pdf-op-filter.c)。本次只手工构造已知等价候选，尚未实现通用状态优化器。
+MuPDF's content filter tracks pending/committed state and emits it as drawing requires. This is a technical reference for an original Rust implementation, not integrated code. [MuPDF content filter](https://github.com/ArtifexSoftware/mupdf/blob/master/source/pdf/pdf-op-filter.c). Only manually constructed equivalent candidates were tested here; no general state optimizer was implemented.
 
-### 单次使用展开、多次使用复用
+### Inline single-use Forms, reuse repeated Forms
 
-单次使用的简单 Form 可以考虑展开，减少独立字典、引用、流头并让相邻内容一起压缩。100 个只调用一次的普通 Form 样本，完整结果从 43,018 降到 14,709 B，三阅读器相同。
+Inlining a simple single-use Form can eliminate dictionary/reference/stream overhead and compress adjacent content together. A sample with 100 single-use ordinary Forms shrank from 43,018 to 14,709 B, identical in three readers.
 
-本次样本限定空资源表、无透明 Group／标签／可选内容、明确 BBox、已知空当前路径；候选显式加入变换和 BBox 裁剪，绘制内容没有栅格化。
+The sample had empty resources, no transparency Group/tags/optional content, explicit BBox and a known empty current path. Candidates inserted transformations and BBox clipping without rasterizing.
 
-通用实现必须处理 Matrix、BBox、资源重命名及继承、图形状态边界。特别是 q/Q 不保存当前路径：插入 `re W n` 裁剪可能丢掉调用者未绘制的路径，不能仅加一层 q/Q 就认为安全。首版跳过透明组、OC、StructParent/MCID、Ref/OPI、交互外观及未知资源环境。
+A general implementation must handle Matrix, BBox, resource renaming/inheritance and graphics-state boundaries. q/Q does not save the current path: `re W n` can discard a caller's pending path, so wrapping q/Q is insufficient. Initially skip transparency groups, OC, StructParent/MCID, Ref/OPI, interactive appearances and unknown resource contexts.
 
-另一方面，相同的复杂描边块可尝试共享，补充已有的纯色填充轮廓复用。但本次 3,600 段描边、重复 6 次的样本虽然从 119,455 降到 21,841 B，Poppler 和 CoreGraphics 相同，PDF.js 却有 2,205 个像素变化，最大单通道差 21。因此该候选不满足严格无损要求，不能计入可发布收益。需定位浮点变换、裁剪或绘制边界的阅读器差异，再决定精确处理范围；不能通过放宽无损断言把它变成“通过”。
+Repeated complex stroke blocks could supplement solid-fill reuse. However, a 3,600-segment block repeated six times shrank 119,455 → 21,841 B while PDF.js changed 2,205 pixels, maximum channel difference 21; Poppler/CoreGraphics matched. This fails strict losslessness and cannot count as releasable savings. Investigate floating-point transforms, clipping and drawing boundaries rather than weakening the lossless assertion.
 
-Form 是展开还是复用应由调用关系及实际压缩代价决定，不能统一全部展开或全部包装。
+Choose inlining versus reuse by call relationships and actual compressed cost rather than applying either universally.
 
-## 5. 透明图片：扩大支持范围，保留透明语义
+## 5. Expand transparent-image support while preserving semantics
 
-目前有两处限制：图片解码要求软遮罩和主图尺寸相同、8 位灰度、无 Matte 等特殊属性；均衡／更小档的降采样还明确要求图片没有 SMask。透明贴图、设计稿可能因此保留了远高于实际显示需要的像素。
+Current decoding requires same-sized image/mask grids, 8-bit Gray and no Matte/special properties; Balanced/Smaller downsampling additionally requires no SMask. Transparent textures/designs can therefore retain excess pixels.
 
-建议先让主图／遮罩各自在原始网格上精确重编码，保留 Decode、Matte、Mask、ICC 及引用关系。更后一步才在均衡／更小档试主图与遮罩的联合降采样；要处理预乘颜色、Matte 去预混、不同网格、非白背景和边缘插值。保真仍保持原像素尺寸，严格无损不改变样本。不能简单把透明图贴到白底再编码。
+First encode image/mask independently and exactly on original grids, preserving Decode, Matte, Mask, ICC and references. Only later try paired Balanced/Smaller downsampling, handling premultiplication, Matte unblending, different grids, nonwhite backgrounds and edge interpolation. Fidelity retains dimensions; strict Lossless retains samples. Compositing on white is not equivalent.
 
-PDF Association 的创建指南建议避免无效的全不透明软遮罩，但这是生成 PDF／RIP 性能建议，不能直接证明任意现有 PDF 的遮罩删除都等价。[PDF Association 创建指南，PDF 第 31 页](https://pdfa.org/wp-content/uploads/2022/06/VDP_BestPractice_Developer.pdf)。本次实测两个反例：
+PDF Association recommends avoiding unnecessary opaque soft masks when creating PDFs, but this is generation/RIP-performance advice, not proof that arbitrary existing masks can be removed. [Creation guide, PDF page 31](https://pdfa.org/wp-content/uploads/2022/06/VDP_BestPractice_Developer.pdf). Two counterexamples were measured:
 
-| 反例                                     | 变小的候选                              | 结果与判断                                                                  |
-| ---------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------- |
-| 480 × 320 主图带 1 × 1 全不透明 SMask    | 删除后解锁主图精确编码，5,897 → 1,790 B | Poppler 相同；CoreGraphics 667 个边缘像素变化，最大差 230；拒绝             |
-| 同时存在全不透明 SMask 与黑色颜色键 Mask | 删除 SMask，5,915 → 5,735 B             | 显露原先被覆盖的 Mask，Poppler 25,385／CoreGraphics 19,123 个像素变化；拒绝 |
+| Counterexample                          | Smaller candidate                                     | Result                                                                                           |
+| --------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 480 × 320 image with opaque 1 × 1 SMask | Remove mask, enabling exact encoding: 5,897 → 1,790 B | Poppler matches; CoreGraphics changes 667 edge pixels, maximum difference 230. Reject.           |
+| Opaque SMask plus black color-key Mask  | Remove SMask: 5,915 → 5,735 B                         | Exposes previously overridden Mask; changes 25,385 Poppler / 19,123 CoreGraphics pixels. Reject. |
 
-PDF.js 源码也显式优先处理 SMask，仅在没有 SMask 时处理 Mask，支持第二个反例的原因分析。[PDF.js 遮罩处理](https://github.com/mozilla/pdf.js/blob/master/src/core/image.js)。已有图形状态软遮罩、嵌套透明组还会增加需要分析的上下文。
+PDF.js explicitly prioritizes SMask and handles Mask only when SMask is absent, supporting the second explanation. [PDF.js mask handling](https://github.com/mozilla/pdf.js/blob/master/src/core/image.js). Graphics-state soft masks and nested transparency add further context.
 
-因此本次建议的重点是“遮罩保留时仍能优化编码”和后续成对采样，而不是自动清除所有看似无作用的遮罩。成对采样目前只是已确认缺口，尚无可以宣称的压缩率和质量结果。
+Focus on optimization while retaining masks, then paired sampling, rather than automatically deleting apparently ineffective masks. Paired sampling was only a confirmed gap, without measured compression/quality claims here.
 
-## 6. 优化顺序与完整文件候选
+## 6. Optimization order and complete-file candidates
 
-`lib.rs` 的资源清理和解码图片共享在图片候选之前；之后依次处理路径、轮廓复用、内容、Flate、Zopfli、资源字节／子图去重与写出。新增 Decode 归一化、原始分量编码或 Form 展开后，可能出现前段未能识别的共享机会。
+In lib.rs, resource cleanup and decoded image sharing precede image candidates; paths, outline reuse, content, Flate, Zopfli, resource-byte/subgraph deduplication and writing follow. Decode normalization, raw encoding or Form inlining may create sharing not visible earlier.
 
-可以在预算内加结构收尾：更新使用关系，按当前语义去重，清理本次新产生的无用对象，再尝试有限写入布局。每步保留已有最佳整文件候选，有明确深度／迭代／内存／时间上限。资源身份、标签、编辑字段和外观共享保护仍生效。
+A bounded structural finish can refresh usage, deduplicate under current semantics, remove newly unused objects and try limited layouts. Retain the best complete candidate after each step, with explicit depth/iteration/memory/time limits and resource-identity, tag, editable-field and shared-appearance protection.
 
-不能每轮对上轮 JPEG 再解码量化。图片有损候选应始终从原始分量／原始压缩系数或固定源像素生成，缓存候选；循环只处理可证明等价的结构。现在只有代码顺序分析，未做实验证明“再跑一轮”能普遍变小。
+Never decode/requantize the previous pass's JPEG repeatedly. Generate lossy candidates from original components/coefficients or fixed source pixels, then cache them. Iteration may affect provably equivalent structure only. This was pipeline analysis; no experiment proved that another pass generally reduces size.
 
-## 验证与建议实施顺序
+## Validation and suggested order
 
-开发实验在忽略目录 `tmp/research-deep2-2026-10-07/`；Rust 写入实验保留在 `crates/squeeze-core/examples/writer_identity_probe.rs`，没有产品调用。release 示例构建、示例严格 clippy 与 rustfmt 检查通过。
+Experiments are in ignored `tmp/research-deep2-2026-10-07/`. The Rust writer probe remains in `crates/squeeze-core/examples/writer_identity_probe.rs`, without product calls. Release example builds, strict example clippy and rustfmt passed.
 
-- 9 类新样本、18 次 0.1.15 worker 处理：每个源／输出在 Poppler、CoreGraphics 和 PDF.js 内都像素相同，源文件 SHA-256 不变。
-- 7 个候选对比中，默认 Decode、16 位 RGB、Lab、DeviceN、重复状态、单次 Form 共 6 个通过三阅读器；描边块复用在 PDF.js 失败。另两个遮罩删除反例在原生阅读器阶段即拒绝。
-- PDF.js 25 个比较记录中 24 个通过、1 个已记录失败；没有把失败候选隐藏或纳入严格无损收益。其文字提取及位置比较均相同，绘图样本没有可提取文字，不代表字体映射覆盖。
-- 写入布局 100 个存活对象图核对全部通过；24 个抽取页面在三阅读器相同。CoreGraphics 使用固定的 200 DPI、关闭抗锯齿／插值进行同阅读器对照；不等于覆盖所有显示设置。
-- 完整文件大小表比较的是“原样由 0.1.15 处理”和“候选变换后再由同版处理”；不是只比较某个流的压缩负载。受控候选证明可行，不等于生产通用实现已经完成。
+- Nine new sample classes, 18 worker runs: source/output pixels matched within Poppler, CoreGraphics and PDF.js; source SHA-256 remained unchanged.
+- Six of seven candidate comparisons passed three readers: default Decode, 16-bit RGB, Lab, DeviceN, redundant state and single-use Form. Stroke reuse failed PDF.js. Two mask-removal counterexamples were rejected during native-reader checks.
+- PDF.js had 24 passes and one documented failure among 25 comparisons. Failures were not hidden or counted as lossless gains. Text/position comparisons matched, but drawing-only samples lack extractable text and do not establish font-map coverage.
+- All 100 writer graph checks passed; 24 sampled pages matched in three readers. CoreGraphics used fixed 200 DPI with antialiasing/interpolation disabled for within-reader comparisons, not every display setting.
+- Complete-file tables compare direct 0.1.15 processing with candidate-transformed input processed by the same version. They are not stream-payload comparisons. Controlled feasibility is not completed general production implementation.
 
-下一次实现建议把原有 P0 统一为有界的图片编码解析与 exact-only 路径，顺带支持默认 Decode 和原始分量预测；然后加入压紧编号及有预算的完整文件布局选择。矢量状态精简和单次 Form 展开独立推进；透明图片先做原始网格精确编码，再研究成对降采样。
+Next, unify P0 into bounded image-chain parsing and an exact-only path supporting default Decode/raw predictors, then compact numbering and budgeted complete-file layouts. Develop state simplification and single-use inlining independently. For transparency, exact original-grid encoding precedes paired downsampling.
 
-字体自动子集、CMYK/YCCK JPEG 系数优化仍维持上一份计划优先级。本次复查既有 384 个 JPEG 实验候选，仍没有更小且通过原有全部严格质量门槛的候选，因此没有新增依据把 Jpegli 推为默认。扩大坐标误差、降低既有 DPI、删标签／附件、展平透明及多图层 MRC 仍不属于这轮目标；图片模式继续每页一张独立图片。
+Automatic font subsets and CMYK/YCCK coefficient optimization retain the previous plan's priorities. Rechecking 384 existing JPEG candidates found none smaller while passing every original strict quality gate, so there is no new case for default Jpegli. More coordinate error, lower DPI, removing tags/attachments, flattening transparency and multilayer MRC remain outside scope. Image mode stays one image per page.

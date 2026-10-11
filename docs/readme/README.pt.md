@@ -1,10 +1,10 @@
 # Squeeze PDF
 
-[English](README.en.md) · [简体中文](../../README.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · **Português**
+[English](../../README.md) · [简体中文](README.zh-CN.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · **Português**
 
 Compressor de PDF de código aberto e totalmente offline para Windows e macOS, atualmente em fase MVP. A interface usa Tauri 2 e React. Rust implementa estratégias de compressão, processamento de imagens, reconstrução de páginas e proteção de arquivos. lopdf lê e grava PDF; o aplicativo usa PDF.js local e a CLI usa hayro por padrão. MozJPEG é vinculado estaticamente por meio de Rust. Não exige qpdf, Ghostscript ou Python durante a execução.
 
-Baixe os instaladores para Windows x64, macOS Apple silicon e macOS Intel em [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases). Ao enviar uma tag `v` correspondente à versão do aplicativo, os instaladores e suas somas de verificação são publicados automaticamente após o sucesso das três compilações. Consulte o [guia de publicação](../RELEASING.md) (chinês/inglês).
+Baixe os instaladores para Windows x64, macOS Apple silicon e macOS Intel em [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases). Ao enviar uma tag `v` correspondente à versão do aplicativo, os instaladores e suas somas de verificação são publicados automaticamente após o sucesso das três compilações. Consulte o [guia de publicação](../RELEASING.md) (inglês).
 
 A partir da versão 0.1.25, as versões publicadas verificam atualizações estáveis no GitHub cerca de cinco segundos após iniciar e a cada 24 horas. O ícone de atualização permite verificar manualmente. Você escolhe instalar e reiniciar, após a conclusão das tarefas de arquivos. Falhas de conexão não interrompem a compressão. A rede é usada apenas para verificar e baixar atualizações; PDFs nunca são enviados. A versão 0.1.24 e anteriores precisam primeiro de uma atualização manual.
 
@@ -124,7 +124,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 A amostra grande adiciona um PDF de 24 páginas e cerca de 138 MB para testes de cancelamento e arquivos grandes. Taxas sintéticas não preveem documentos reais. Poppler, pypdf, Pillow e NumPy são ferramentas de verificação independente no desenvolvimento, não dependências de execução.
 
-Registros detalhados atualmente em chinês: [validação](../VALIDATION.md), [plano](../../PLAN.md). Jpegli e saída Brotli são experimentos, não dependências nem opções de produção.
+Registros detalhados em inglês: [validação](../VALIDATION.md), [plano](../../PLAN.md). Jpegli e saída Brotli são experimentos, não dependências nem opções de produção.
 
 ## Materiais de terceiros
 

@@ -1,128 +1,128 @@
-# 通用 PDF 压缩能力：第五轮之后的深入检查
+# General PDF compression: review after the fifth round
 
-研究日期：2026-10-07。代码及实测基线：Squeeze PDF 0.1.15。
+Research date: 2026-10-07. Code and measurement baseline: Squeeze PDF 0.1.15.
 
-后续状态：0.1.16 已启用严格无损图片、原始分量与写入布局，见 [验证记录](VALIDATION.md)；0.1.19 已加入受限编码链、短 Contents 候选与完整文件回退，见 [验证记录](VALIDATION.md)。自动字体使用收集及其他 P1 / P2 仍未实施。下文保留研究时的代码状态和手工实验，不代表全部已交付。
+Later status: 0.1.16 enabled strict-lossless images, raw components and writer layouts; 0.1.19 added restricted encoding chains, short Contents candidates and complete-file fallback. See the [validation record](VALIDATION.md). Automatic font usage and other P1/P2 work were still unimplemented at this point. The following preserves the research-time code state and manual experiments rather than claiming everything was delivered.
 
-结论：仍有值得做的通用优化，优先补齐编码与绘制结构的覆盖，再推进自动字体子集化。继续保留现有档位的图片尺寸、JPEG 质量与颜色约束。这次完成资料核对、代码审计和开发实验；没有修改产品引擎或发布新版本。
+General improvements remain worthwhile: extend encoding and drawing-structure coverage first, then automatic font subsetting. Retain current image dimensions, JPEG quality and color constraints. This review checked references, audited code and ran development experiments; it did not modify the production engine or release a version.
 
-“通用”指能处理不同来源 PDF 中的某一类结构，不表示每份文件都会进一步缩小。已有的对象流、RGB/Gray JPEG 系数重编码、五种 PNG 行预测、Indexed、G4、资源清理、资源子图共享及有界 Zopfli，均不列为新增功能。
+“General” means handling a structural class across PDFs from different sources, not making every file smaller. Existing object streams, RGB/Gray JPEG coefficient re-encoding, five PNG predictors, Indexed, G4, resource cleanup/subgraph sharing and bounded Zopfli are not new features in this plan.
 
-## 实际检查与实验
+## Inspection and experiments
 
-只读统计既有 17 类自有样本与两份 0.1.15 保真结果，共 19 份、126 页。另生成 5 类结构样本；手工构造等价的编码/结构候选，分别交给同一份已打包的 0.1.15 worker，用 preserve + Lossless 导出。
+Read-only statistics covered 17 synthetic sample categories and two existing 0.1.15 Fidelity results: 19 files, 126 pages. Five additional structural samples were generated, with manually constructed equivalent encoding/structure candidates. The same packaged 0.1.15 worker exported each using preserve + Lossless.
 
-下面比较的是两条路径最终的完整 PDF 大小，不是图片负载或未压缩流的大小。候选结构在开发脚本里构造，尚未成为自动产品算法。
+The table compares final complete PDFs from both paths, not image payloads or uncompressed streams. Development scripts constructed candidates; these were not yet automatic product algorithms.
 
-| 自有结构样本                    | 直接交给 0.1.15 | 等价候选再交给 0.1.15 |                额外变化 |
-| ------------------------------- | --------------: | --------------------: | ----------------------: |
-| ASCII85 包裹 JPEG               |        27,234 B |              21,917 B |               小 19.52% |
-| ASCII85 包裹 Flate RGB          |        75,804 B |              22,799 B |               小 69.92% |
-| 386 段短页面内容流，q/Q 跨流    |        45,617 B |               1,664 B |               小 96.35% |
-| 严格无损 RGB 增加精确 Up 行预测 |        22,799 B |               2,278 B |               小 90.01% |
-| 内联 JPEG 外置成普通图片对象    |        13,765 B |              21,917 B | **大 59.22%，必须拒绝** |
+| Synthetic structural sample                          | Direct 0.1.15 | Equivalent candidate, then 0.1.15 |         Additional change |
+| ---------------------------------------------------- | ------------: | --------------------------------: | ------------------------: |
+| ASCII85-wrapped JPEG                                 |      27,234 B |                          21,917 B |            19.52% smaller |
+| ASCII85-wrapped Flate RGB                            |      75,804 B |                          22,799 B |            69.92% smaller |
+| 386 short page-content streams with cross-stream q/Q |      45,617 B |                           1,664 B |            96.35% smaller |
+| Strict-lossless RGB with exact Up prediction         |      22,799 B |                           2,278 B |            90.01% smaller |
+| Inline JPEG externalized as an image object          |      13,765 B |                          21,917 B | **59.22% larger; reject** |
 
-这些是为了暴露结构缺口而构造的样本，不能推算普通文档的压缩百分比。ASCII85 + Flate 样本的收益同时包含剥离包装和解锁现有 Zopfli；不是单靠去掉 ASCII85 达到 69.92%。严格无损 RGB 实验没有使用 JPEG 或降低图片尺寸，pypdf 解码后的样本字节也相同。
+These deliberately expose structural gaps and cannot predict ordinary-document compression percentages. ASCII85 + Flate gains combine wrapper removal and access to existing Zopfli, not wrapper removal alone. The strict-lossless RGB experiment used neither JPEG nor downsampling; pypdf decoded identical sample bytes.
 
-10 次 worker 导出均成功，生成输入的 SHA-256 未变。Poppler、macOS CoreGraphics 在 200 DPI 下核对输入/结果与两种结构候选，像素逐字节相同；PDF.js 另做 15 组像素和文字比较，也全部一致。查看了 RGB 与跨流绘制的渲染图，内容非空且完整。这里验证了受限样本的可行性，尚未验证通用解析器、错误输入或 Windows 打包。
+All ten worker exports succeeded without changing generated-input SHA-256 hashes. Poppler and macOS CoreGraphics at 200 DPI produced byte-identical pixels for inputs/results and the two structural alternatives. PDF.js performed another 15 pixel/text comparisons, all identical. Inspected RGB and cross-stream renders were nonempty and complete. This demonstrates restricted-sample feasibility, not a general parser, malformed-input handling or Windows packaging.
 
-## 建议优先实施的能力
+## Recommended priorities
 
-### 1. 编码链规范化与间接参数支持
+### 1. Normalize encoding chains and indirect parameters
 
-优先级 P0，主要改善保留模式。当前非图片 Flate 通路只接收无参数的单个 Name；图片通路也只支持少量单过滤器情况，Filter/DecodeParms 的数组与间接引用支持不一致。
+P0, mainly preserve mode. The non-image Flate path accepts only a parameter-free single Name; image handling also supports few single-filter cases, with inconsistent Filter/DecodeParms array/reference support.
 
-- 支持受限的 ASCII85/ASCIIHex → Flate、ASCII85/ASCIIHex → JPEG/G4 链，以及可逆的 LZW/RunLength → Flate 候选。
-- 剥离 JPEG/G4 的文字包装时保留里面的原始压缩字节，不先解码图片再重新量化。
-- 正确解析过滤器次序、参数数组、null、间接引用和 LZW EarlyChange；改变链时只调整对应参数。
-- 设总解码字节、链长度和取消预算。损坏或未知链保留原数据；外部流和被保护的交互图片不改。
+- Support restricted ASCII85/ASCIIHex → Flate, ASCII85/ASCIIHex → JPEG/G4, and reversible LZW/RunLength → Flate candidates.
+- Strip text wrappers from JPEG/G4 while keeping terminal compressed bytes, without decoding/requantizing images first.
+- Parse filter order, parameter arrays, null, references and LZW EarlyChange correctly. Change only parameters corresponding to altered filters.
+- Budget decoded bytes, chain length and cancellation. Preserve malformed/unknown chains, external streams and protected interactive images.
 
-qpdf 官方文档也区分通用的可逆过滤器与图像解码器，并提供将通用编码重写为 Flate 的路径。这支持该方向的可行性，不能直接证明我们的所有链都安全。[qpdf 流编码控制](https://qpdf.readthedocs.io/en/stable/cli.html#option-decode-level)。
+qpdf distinguishes general reversible filters from image decoders and can rewrite general encodings as Flate. This supports feasibility, not safety of every chain in this project. [qpdf stream controls](https://qpdf.readthedocs.io/en/stable/cli.html#option-decode-level).
 
-### 2. 合并短内容流，减少容器与字典开销
+### 2. Coalesce short content streams
 
-优先级 P0，主要改善保留模式。现在会跨 Contents 数组分析使用关系，但仍分别存储/压缩每段内容。
+P0, mainly preserve mode. Usage analysis already spans Contents arrays, but each segment is stored/compressed separately.
 
-- 对很多短流组成的页面，建立合并后统一压缩的候选；原数组保留作回退。
-- 保持数组顺序和连续图形/文本状态，不在流边界插入 q/Q 或重置状态。处理结尾注释、词法边界、共享流与私有页面引用。
-- 先限制为可正确解析且无内联二进制图片的页面；未知语法与超预算页面跳过。
-- 限制合并后的长度；大流不强制拼接，以免扩大阅读器内存需求。
+- Try one compressed stream for pages made of many short streams; retain the original array as fallback.
+- Preserve array order and continuous graphics/text state. Do not insert q/Q or reset state at boundaries. Handle trailing comments, lexical boundaries, shared streams and private page references.
+- Initially require parseable pages without inline binary images; skip unknown syntax and over-budget pages.
+- Bound merged lengths and avoid forcing large streams together, which can increase reader memory requirements.
 
-官方工具已有 coalesce-contents 行为，但也说明分流可能服务于编辑和内存控制；因此选择性合并更合适。[qpdf 内容流合并](https://qpdf.readthedocs.io/en/stable/cli.html#option-coalesce-contents)。
+Official coalesce-contents behavior also recognizes that splitting can serve editing/memory needs, supporting selective merging. [qpdf content coalescing](https://qpdf.readthedocs.io/en/stable/cli.html#option-coalesce-contents).
 
-### 3. 严格无损档复用已有的精确图片优化
+### 3. Reuse exact image algorithms in strict Lossless
 
-优先级 P0，适用于底层 CLI/API 的 Lossless 档。lib.rs 目前仅在 preset != Lossless 时调用图片优化；Lossless 因此整体跳过了一些本可安全使用的算法。界面上的“保真”属于 Fidelity，已有图片候选优化，两者不能混淆。
+P0 for the low-level CLI/API Lossless preset. lib.rs calls image optimization only when preset != Lossless, skipping some safe algorithms entirely. Desktop Fidelity already has image candidates and is a different preset.
 
-- 单独建立 exact-only 通路：已支持颜色的精确行预测、Indexed/位打包/G4，以及受支持 JPEG 的系数域熵编码。
-- 允许原编码参与竞争，禁止有损候选、重新量化、降采样、模糊灰度判断与二值化。
-- 保持 ICC/Decode/Mask/Matte 语义；被 AP、表单或特殊调用保护的图片仍保留原编码。
+- Create a separate exact-only path: supported-color exact predictors, Indexed/bit packing/G4 and supported JPEG coefficient-domain entropy coding.
+- Let original encoding compete. Forbid lossy candidates, requantization, downsampling, approximate grayscale detection and thresholding.
+- Preserve ICC/Decode/Mask/Matte semantics. Images protected through AP, forms or special calls retain original encoding.
 
-已有代码可以复用，但不能直接对 Lossless 调用当前含有有损 JPEG 候选的整套 images::optimize。
+Reuse code without calling the entire existing images::optimize function, which includes lossy JPEG candidates, for Lossless.
 
-### 4. 自动字体使用收集与重新子集化
+### 4. Automatic font usage and resubsetting
 
-优先级 P1，独立实施；开发成本较高，潜在收益集中在字体占比大的 Word、报表和演示文稿导出文件。
+P1, separate implementation with higher development cost; most promising for font-heavy Word, report and presentation exports.
 
-第三轮已证明受限 CID TrueType 的子集实验可行：自有样本字体程序 773,236 → 22,708 B。但它需要外部给定 CID→GID 清单；产品尚无自动使用收集，因此不是已交付的通用能力。
+Third-round restricted CID TrueType experiments reduced a synthetic font program from 773,236 to 22,708 B. They require an external CID→GID list, so general automatic usage collection was not delivered.
 
-- 首版限制为静态页面、CIDFontType2、可解释的 Identity-H/CIDToGIDMap；分别验证更多 CMap、竖排、CFF 等后续范围。
-- 按实际 PDF 字符码、CID 与 GID 收集，跟踪 Tf/Tj/TJ、图形状态保存/恢复、Contents 数组和 Form 调用资源；不能只收集提取出的 Unicode。
-- 保留复合字形依赖、hinting、宽度、ToUnicode 及原内容字符码。重新编号 GID 时同步映射。
-- 保护编辑字段及与其共享的字体；不能按当前显示文字裁掉未来输入需要的字形。
+- Initially support static pages, CIDFontType2 and interpretable Identity-H/CIDToGIDMap; validate other CMaps, vertical writing and CFF separately.
+- Track actual PDF codes, CIDs and GIDs through Tf/Tj/TJ, graphics-state save/restore, Contents arrays and Form resource scopes. Extracted Unicode alone is insufficient.
+- Retain composite dependencies, hinting, widths, ToUnicode and original content codes. Update mappings when GIDs change.
+- Protect editable fields and shared fonts; current displayed text does not establish all glyphs needed for future input.
 
-优先延续已有 Rust subsetter 实验。HarfBuzz 的 retain-gids 也提供保留字形编号的另一条实现路线，仍不能代替 PDF 使用关系分析。[HarfBuzz 子集 API 源码](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h)，[验证记录](VALIDATION.md)。
+Continue the Rust subsetter experiment first. HarfBuzz retain-gids offers another route, but still requires PDF usage analysis. [HarfBuzz subset source](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h), [validation](VALIDATION.md).
 
-### 5. CMYK/YCCK JPEG 的系数域重编码
+### 5. CMYK/YCCK JPEG coefficient re-encoding
 
-优先级 P1，主要改善印刷与设计类文件的保留模式。第五轮的 CMYK 支持限于 raw/Flate 四分量样本；jpeg_lossless.rs 仍只接受 1/3 分量，images.rs 的调用条件也排除了常见 CMYK 情况。
+P1, mainly preserve mode for print/design documents. Fifth-round CMYK support covers raw/Flate four-component samples; jpeg_lossless.rs still accepts only 1/3 components, and images.rs excludes common CMYK cases.
 
-- 以四分量 DCT 系数重写 Huffman/扫描候选，保留量化表、采样、尺寸和系数。
-- 同时核对 Adobe APP14、PDF Decode/ColorTransform、ICC 与 CMYK/YCCK 的反相关系。
-- 不经 RGB 转换；不能仅放开 num_components == 4 就发布。
-- 使用独立系数核对及多个阅读器色块/渐变对照，候选更小且通过才采用。
+- Rewrite Huffman/scan candidates from four-component DCT coefficients, preserving quantization tables, sampling, dimensions and coefficients.
+- Check Adobe APP14, PDF Decode/ColorTransform, ICC and CMYK/YCCK inversion relationships together.
+- Avoid RGB conversion; merely allowing num_components == 4 is insufficient.
+- Independently compare coefficients and multireader color blocks/gradients. Adopt only smaller, validated candidates.
 
-MozJPEG 的 jpegtran 支持在压缩系数域进行优化；这是延展现有技术路线的依据，不是 CMYK PDF 兼容性已经通过的证明。[MozJPEG jpegtran 说明](https://github.com/mozilla/mozjpeg/blob/master/usage.txt)。
+MozJPEG jpegtran supports compressed-coefficient optimization; this extends the existing approach without proving CMYK PDF compatibility. [MozJPEG usage](https://github.com/mozilla/mozjpeg/blob/master/usage.txt).
 
-### 6. 解码等价的非图片资源共享
+### 6. Share decoded-equivalent non-image resources
 
-优先级 P1，与编码链支持配合。第五轮资源子图已经能跨不同对象编号共享资源，但 stream 仍按压缩字节与字典比较；同一字体程序、ICC 或 CMap 以不同 Flate 级别/包装编码存储时，仍可能不合并。
+P1, alongside chain support. Fifth-round subgraph sharing works across object numbers, but streams still compare encoded bytes/dictionaries. Identical font programs, ICC or CMaps at different Flate levels/wrappers can miss merging.
 
-先从解码字节及语义字典确实相同的 FontFile2、ICC、ToUnicode 等叶子资源开始。只把 Length、Filter 等编码属性从比较中分离，不能忽略 ICC 的 N/Range/Alternate、字体程序长度语义或使用映射。限制解码缓存、确认哈希碰撞后的字节等价，再选择已有的较小有效编码。
+Start with FontFile2, ICC and ToUnicode leaves whose decoded bytes and semantic dictionaries match. Separate encoding attributes such as Length/Filter without ignoring ICC N/Range/Alternate, font-program length semantics or mappings. Bound decoding caches, verify bytes after hash matches, and choose an existing smaller valid encoding.
 
-这不等于把不同字体子集、不同标签 Form 或交互身份合并；特殊资源继续保护。
+This does not justify merging different font subsets, tagged Forms or interactive identities. Protect special resources.
 
-## 有条件推进的方向
+## Conditional directions
 
-| 方向                       | 现有缺口与建议                                                                                                                                                              | 适用范围                                           |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 内联图片解析与候选外置     | BI/ID/EI 当前使多条页面分析保守跳过。补真实二进制边界解析，处理缩写、颜色资源及 EI 出现在数据中的情况；保留原内联编码，按整份文件选择外置候选。上面的反例证明不能统一转换。 | 保留模式；可解锁后续图片与资源优化                 |
-| 精确图片编码选择进一步优化 | 五种 PNG 过滤已实现；新增的是熵估计/有预算压缩试探的行选择、TIFF Predictor 2 候选、调色板排列候选，以及能精确恢复样本值的直接 2/4 位 Gray。已有 Indexed 不重复算新增。      | 两种模式，图表/灰度/少色图片为主                   |
-| 无损 JBIG2 generic region  | 先只接收已经精确为 1 位的图片，经 API 编码并核对每个像素，与现有 G4 竞争。原灰度/彩色图不经 CLI 默认预处理二值化；不采用相似字形替换。                                      | 两种模式的精确黑白扫描；仍每页一图                 |
-| 原单图页面直接复用         | 仅在图片采样网格与目标输出一致，裁剪、旋转、颜色、插值及可见覆盖都能证明等价时，尝试绕过再次渲染。尺寸不匹配时回到现有渲染路径。                                            | 图片模式，减少重复 JPEG 损失及耗时；体积收益需实测 |
-| 编码预算与最佳整文件候选   | Zopfli 的前 48 个按编码体积排序，可能都超过 256 KiB 解码上限，导致后面的有效流没机会。改善可处理性/收益估计、总文档预算、取消和缓存；保留不启用新增策略的整文件候选。       | 两种模式，收益与稳定性兼顾                         |
+| Direction                                          | Gap and recommendation                                                                                                                                                                                                                                                 | Scope                                                              |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Inline-image parsing/externalization               | BI/ID/EI causes conservative skips. Parse binary boundaries, abbreviations, color resources and EI inside data; retain inline encoding and choose externalization by complete-file cost. The counterexample above rules out unconditional conversion.                  | Preserve; may enable later image/resource optimization             |
+| Further exact encoding selection                   | Five PNG filters already exist. Add entropy/budgeted compression probes, TIFF Predictor 2, palette permutations and exact direct 2-/4-bit Gray. Existing Indexed is not new.                                                                                           | Both modes, especially charts/grayscale/few-color images           |
+| Lossless JBIG2 generic region                      | Accept only images already exactly 1-bit, encode through API, check every pixel and compare against G4. Do not apply CLI-default thresholding to Gray/RGB or substitute similar glyphs.                                                                                | Exact monochrome scans in either mode, still one image per page    |
+| Direct reuse of single-image pages                 | Bypass rendering only if sampling grid matches output and crop, rotation, color, interpolation and visible coverage are provably equivalent. Otherwise render normally.                                                                                                | Image mode; may reduce repeated JPEG loss/time; measure size gains |
+| Encoding budgets and best complete-file candidates | The first 48 Zopfli candidates sorted by encoded size may all exceed 256 KiB decoded eligibility, starving later valid streams. Improve eligibility/benefit estimates, document budgets, cancellation and caching; retain a complete candidate without new strategies. | Both modes, balancing gains and stability                          |
 
-ZopfliPNG 的官方实现提供 MinSum、Entropy、BruteForce 等不同过滤策略，说明现有按残差绝对值选择不必是最佳压缩结果。只借用过滤搜索思路，输出仍是合法 PDF 图像流，不直接嵌入完整 PNG。[ZopfliPNG 过滤策略](https://github.com/google/zopfli/blob/master/src/zopflipng/zopflipng_lib.h)。
+ZopfliPNG implements MinSum, Entropy and BruteForce filters, showing that minimum absolute residuals need not give the smallest encoding. Borrow filter-search ideas while writing legal PDF image streams rather than embedding entire PNG files. [ZopfliPNG strategies](https://github.com/google/zopfli/blob/master/src/zopflipng/zopflipng_lib.h).
 
-JBIG2 上游 README 记录 refinement 兼容性问题，当前 CLI 源码也禁用了该路径；generic region 与 symbol mode 是不同路径。不能把“JBIG2”整体等同于无损字形共享，也不照抄带阈值化的命令示例。[jbig2enc README](https://github.com/agl/jbig2enc)，[编码及预处理源码](https://github.com/agl/jbig2enc/blob/master/src/jbig2.cc)。
+jbig2enc documents refinement compatibility issues; its CLI source also disables that path. Generic region and symbol modes differ. “JBIG2” does not automatically mean lossless glyph sharing, and thresholding command examples should not be copied. [jbig2enc](https://github.com/agl/jbig2enc), [encoding/preprocessing source](https://github.com/agl/jbig2enc/blob/master/src/jbig2.cc).
 
-## 暂时降低优先级的工作
+## Lower-priority work
 
-- **只精简空白和注释**：本次对两份现有保真结果分别检查约 2 MiB 绘制数据，18/17 个流的等价词法重排，仅比同数据 zlib-9 负载减少 463/861 B。这是流级实验，未测完整文件收益；不足以作为主要压缩策略。未来可和可靠内容解析器合并实现。
-- **全局加大 Zopfli 迭代**：当前两份结果首 48 个尺寸候选有 47/48 个可落在解码上限内，不能把理论上的筛选饥饿当作它们当前压缩不足的原因。迭代更多不保证值得增加的时间。
-- **重新推广 Jpegli、JP2 或 Brotli**：前几轮的局部画质/阅读器门槛仍有效。没有新证据时保持实验状态。
-- **扩大坐标舍入、降低 DPI/质量、删除附件或标签**：继续沿用既有误差和内容约定，不作为此次通用能力优化。
+- **Whitespace/comments alone:** approximately 2 MiB of drawing data in each of two existing Fidelity results was inspected. Equivalent lexical rewrites of 18/17 streams saved only 463/861 B against zlib-9 of the same data. These are stream-level results without complete-file measurements, insufficient as a principal strategy. Combine with a reliable parser later.
+- **Globally increasing Zopfli iterations:** 47/48 of the first 48 candidates in the two existing results fit decoded limits. Theoretical starvation does not explain their current compression. More iterations may not justify the time.
+- **Reintroducing Jpegli, JP2 or Brotli:** earlier local-quality/reader gates still apply. Keep experiments without new evidence.
+- **More coordinate rounding, lower DPI/quality, deleting attachments/tags:** retain current error/content contracts; these are outside this general-optimization effort.
 
-两份现有保真结果仍以 Flate 和 JPEG 为主，未见嵌入字体程序；新链、自动字体等能力主要扩大其他来源文档的受益范围。本次没有证明它们会让这两份文件再大幅缩小。
+Both existing Fidelity results mainly contain Flate and JPEG and no embedded font programs. New chains/fonts primarily expand benefits to other document sources. This review did not demonstrate major additional reductions for these two files.
 
-## 下一轮实施与验收
+## Next implementation and acceptance
 
-建议先实施 P0：编码链与间接参数 → 短 Contents 候选合并 → 严格无损图片通路。随后分开推进字体使用收集、CMYK JPEG、非图片解码共享；内联图片、JBIG2 与额外预测策略先做带预算的候选实验。
+Implement P0 first: chains/indirect parameters → selective short Contents coalescing → strict-lossless images. Then separately tackle font usage, CMYK JPEG and non-image decoded sharing. Inline images, JBIG2 and extra predictors begin as budgeted experiments.
 
-补充自有样本覆盖 ASCII85/Hex、LZW EarlyChange、RunLength、Filter/参数数组及引用、跨流状态、末尾注释、共享 Contents、BI 二进制 EI、CID 映射、CMYK/YCCK 标记、损坏流、超预算与取消。无需用户提供全面文档。
+Synthetic coverage should include ASCII85/Hex, LZW EarlyChange, RunLength, Filter/parameter arrays/references, cross-stream state, trailing comments, shared Contents, binary EI, CID mappings, CMYK/YCCK markers, damaged streams, budgets and cancellation. Users need not supply a comprehensive corpus.
 
-新候选必须同时满足：完整文件相对旧引擎候选更小；声称无损的像素/系数/解码流一致；文字映射与几何、ICC、遮罩、表单编辑、附件、标签等语义完整；常用阅读器验证通过；不让现有任务超过截止时间。不能只比较是否小于原件，也不能只比较单个 stream 负载。
+Candidates must reduce complete-file size against the previous engine candidate; preserve promised lossless pixels/coefficients/decoded bytes; retain text mappings/geometry, ICC, masks, editable forms, attachments and tags; pass common readers; and respect task deadlines. Comparing only with the original or a single stream is insufficient.
 
-开发实验保存在忽略目录 `tmp/research-round6-2026-10-07/`：probe.py / probe-results.json（完整文件实验），coverage.py / coverage.json（19 份只读统计），content_probe.py / content-results.json（流级词法实验），pdfjs/results.json（三阅读器验证的一部分）。这些工具不参与产品运行。
+Experiments are in ignored `tmp/research-round6-2026-10-07/`: probe.py/probe-results.json (complete files), coverage.py/coverage.json (19 read-only files), content_probe.py/content-results.json (lexical streams), pdfjs/results.json (part of three-reader validation). These tools are not runtime dependencies.
 
-进一步的代码缺口与实验见 [深入研究补充](PDF-OPTIMIZATION-DEEPER.md)：默认 Decode、16 位／特殊颜色原始分量编码、对象编号与写入布局、矢量状态／单次 Form、透明遮罩与优化顺序。该补充同时记录两个遮罩删除反例，以及描边块复用在 PDF.js 的无损失败结果；没有更新产品默认行为。
+See [deeper research](PDF-OPTIMIZATION-DEEPER.md) for default Decode, 16-bit/special-color raw components, numbering/layout, graphics state/single-use Forms, masks and optimization order. It also records two failed mask deletions and a stroke-reuse lossless failure in PDF.js; product defaults did not change.

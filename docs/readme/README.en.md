@@ -1,10 +1,10 @@
 # Squeeze PDF
 
-**English** · [简体中文](../../README.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Português](README.pt.md)
+**English** · [简体中文](README.zh-CN.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [Deutsch](README.de.md) · [Português](README.pt.md)
 
 An open-source, offline PDF compressor for Windows and macOS, currently an MVP. The interface uses Tauri 2 and React. Rust implements compression strategies, image processing, page reconstruction and file protection. PDF reading/writing uses lopdf; desktop rendering uses local PDF.js, while the CLI uses hayro by default. JPEG encoding uses statically linked MozJPEG through Rust bindings. No qpdf, Ghostscript or Python is required at runtime.
 
-Download Windows x64, macOS Apple silicon and macOS Intel installers from [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases). Pushing a `v` tag matching the app version automatically publishes the installers and checksums after all three builds succeed. See the [release guide](../RELEASING.md) (Chinese/English).
+Download Windows x64, macOS Apple silicon and macOS Intel installers from [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases). Pushing a `v` tag matching the app version automatically publishes the installers and checksums after all three builds succeed. See the [release guide](../RELEASING.md) (English).
 
 Starting with 0.1.25, release builds check for stable updates on GitHub about five seconds after launch and every 24 hours while running. Use the update icon in the header to check manually. Installation and restart require your choice and wait for active file tasks to finish. Offline checks do not interrupt compression. Only version checks and update downloads use the network; PDFs are never uploaded. Version 0.1.24 and earlier need one manual upgrade first.
 
@@ -124,7 +124,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 The large sample adds an approximately 138 MB, 24-page PDF for cancellation and large-file testing. Synthetic compression ratios do not predict real documents. Independent development checks use Poppler, pypdf, Pillow and NumPy; these are not runtime dependencies.
 
-Detailed technical records are currently in Chinese: [validation](../VALIDATION.md), [plan](../../PLAN.md). Jpegli and Brotli output experiments are not production dependencies or output options.
+Detailed technical records are in English: [validation](../VALIDATION.md), [plan](../../PLAN.md). Jpegli and Brotli output experiments are not production dependencies or output options.
 
 ## Third-party materials
 

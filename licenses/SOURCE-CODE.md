@@ -54,20 +54,3 @@ require them at runtime. Compiler output may differ in table packing and
 padding; bit-identical reconstruction is not promised.
 
 Upstream source: https://releases.pagure.org/liberation-fonts/liberation-fonts-1.07.4.tar.gz
-
-## 中文说明
-
-第三方组件各自的许可证继续有效，本产品自身条款不限制这些许可证赋予的权利。
-源码和许可材料已经随本次分发提供，无需另行付费或联网下载。
-
-Squeeze PDF 自有代码采用 Apache-2.0；完整正文及署名见同目录的
-`PROJECT-LICENSE.txt` 和 `PROJECT-NOTICE.txt`。第三方字体及依赖继续适用各自许可证。
-
-macOS：右键应用，选择“显示包内容”，打开
-`Contents/Resources/third-party/`。Windows：打开软件安装目录中的 `third-party/`。
-单独分发 worker 或 CLI 时，应同时提供整个 `third-party/` 目录。
-
-`NOTICES.txt` 包含版权及许可正文；`mpl-sources/` 提供未修改 MPL 依赖的完整源码；
-`font-sources/` 提供 Liberation 1.07.4 完整上游源码和实际随包四款字体的可编辑
-TTX 源码、重建脚本及构建说明。原字体保持 PDF.js 提供的字节；重新构建可能改变
-表布局、填充和校验和，不承诺重建文件逐字节相同。源码及其修改适用各自的许可证。

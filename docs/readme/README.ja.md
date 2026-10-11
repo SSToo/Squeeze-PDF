@@ -1,10 +1,10 @@
 # Squeeze PDF
 
-[English](README.en.md) · [简体中文](../../README.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · **日本語** · [Deutsch](README.de.md) · [Português](README.pt.md)
+[English](../../README.md) · [简体中文](README.zh-CN.md) · [Français](README.fr.md) · [Español](README.es.md) · [한국어](README.ko.md) · **日本語** · [Deutsch](README.de.md) · [Português](README.pt.md)
 
 Windows・macOS 向けのオープンソース、完全オフライン PDF 圧縮アプリです。現在は MVP 段階です。画面は Tauri 2 と React、圧縮戦略・画像処理・ページ再構築・ファイル保護は Rust で実装しています。PDF の読み書きは lopdf、デスクトップの描画はローカルの PDF.js、CLI の既定の描画は hayro を使用します。JPEG は Rust 経由で静的リンクした MozJPEG で符号化します。実行時に qpdf、Ghostscript、Python は不要です。
 
-Windows x64、Apple silicon Mac、Intel Mac のインストーラーは [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) からダウンロードできます。アプリのバージョンと一致する `v` タグをプッシュすると、3 プラットフォームのビルド成功後にインストーラーとチェックサムを自動公開します。[リリースガイド](../RELEASING.md)（中国語・英語）を参照してください。
+Windows x64、Apple silicon Mac、Intel Mac のインストーラーは [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) からダウンロードできます。アプリのバージョンと一致する `v` タグをプッシュすると、3 プラットフォームのビルド成功後にインストーラーとチェックサムを自動公開します。[リリースガイド](../RELEASING.md)（英語）を参照してください。
 
 0.1.25 以降の配布版は起動約 5 秒後と実行中の 24 時間ごとに GitHub の安定版更新を確認します。上部の更新アイコンから手動確認もできます。インストールと再起動はユーザーが選択し、ファイル処理が完了してから行います。オフラインでの確認失敗は圧縮を中断しません。通信はバージョン確認と更新のダウンロードに限られ、PDF はアップロードしません。0.1.24 以前のバージョンは最初に一度手動でアップグレードしてください。
 
@@ -124,7 +124,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 大容量サンプルはキャンセル・大きなファイルの試験向けに約 138 MB・24 ページの PDF を追加生成します。合成サンプルの圧縮率は実際の文書を予測しません。Poppler、pypdf、Pillow、NumPy は開発用独立検証ツールで、実行依存ではありません。
 
-詳細記録は現在中国語です。[検証](../VALIDATION.md)と[計画](../../PLAN.md)を参照してください。Jpegli と Brotli 出力は実験であり、製品依存・出力オプションではありません。
+詳細記録は英語で提供しています。[検証](../VALIDATION.md)と[計画](../../PLAN.md)を参照してください。Jpegli と Brotli 出力は実験であり、製品依存・出力オプションではありません。
 
 ## 外部コンポーネント
 
