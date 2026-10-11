@@ -55,3 +55,5 @@ cp src-tauri/icons/32x32.png public/favicon.png
 - 增加依赖时检查代码与资产的实际许可，并通过 `npm run notices` 保持分发材料完整。单独分发 CLI / worker 也要附带完整的生成 `third-party/` 目录。
 - 优先使用 Rust examples 生成可复现样本。不要提交用户原始 PDF、密钥、签名证书或含个人文档内容的日志；需要复现问题时提供有权公开的最小样本。
 - Pull Request 说明具体问题、最终行为、测试结果和兼容性边界。生成目录 `target/`、`dist/`、`third-party/` 及本地 `tmp/` 不纳入 Git。
+
+公开提交中的测试记录使用自建样本或匿名编号，不包含用户真实文件名、本地路径、原件指纹或文档内容。

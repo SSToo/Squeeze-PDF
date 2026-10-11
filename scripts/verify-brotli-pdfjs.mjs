@@ -9,8 +9,8 @@ const root = process.argv[2];
 if (!root) throw new Error("experiment-directory");
 const results = [];
 for (const name of [
-  "talvory",
-  "orqavion",
+  "document-a",
+  "document-b",
   "font",
   "raster",
   "binary",

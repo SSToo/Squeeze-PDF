@@ -33,7 +33,7 @@ Windows와 macOS용 오픈 소스 오프라인 PDF 압축 프로그램이며, �
 
 원본 유지 모드는 검증에 통과하고 원본보다 작은 PDF만 내보냅니다. 후보는 전체 파일 크기로 비교하고 커지면 이전 방식으로 돌아갑니다. 이미지 모드는 파일이 커져도 선택한 형식으로 출력하며 증가량을 표시합니다. 원본은 읽기 전용이고 기존 출력은 덮어쓰지 않습니다. 처리 중 입력이 바뀌면 출력 확정을 막습니다.
 
-지원 입력에서는 JPEG, 정확한 Flate, Indexed 팔레트, 1비트, CCITT G4 후보를 비교합니다. 기존 JPEG 계수, 자원 공유, 제한된 CID 글꼴 서브셋, 파일 배치도 최적화합니다. 데스크톱은 예산과 품질 기준 안에서 직접 렌더링과 2배 렌더링 후 축소 결과를 비교할 수 있습니다. [구현 및 검증 범위](../PDF-OPTIMIZATION-ROUND9.md)를 참고하세요.
+지원 입력에서는 JPEG, 정확한 Flate, Indexed 팔레트, 1비트, CCITT G4 후보를 비교합니다. 기존 JPEG 계수, 자원 공유, 제한된 CID 글꼴 서브셋, 파일 배치도 최적화합니다. 데스크톱은 예산과 품질 기준 안에서 직접 렌더링과 2배 렌더링 후 축소 결과를 비교할 수 있습니다. [구현 및 검증 범위](../VALIDATION.md)를 참고하세요.
 
 ## 데스크톱 기능
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 큰 샘플은 취소와 대용량 파일 시험용 약 138 MB, 24페이지 PDF를 추가 생성합니다. 합성 샘플의 압축률로 실제 문서를 예측할 수 없습니다. Poppler, pypdf, Pillow, NumPy는 개발 중 독립 검증 도구이며 실행 의존성이 아닙니다.
 
-상세 기술 기록은 현재 중국어입니다. [검증](../VALIDATION.md), [계획](../../PLAN.md), 최적화 [1](../PDF-OPTIMIZATION-ROUND1.md), [2](../PDF-OPTIMIZATION-ROUND2.md), [3](../PDF-OPTIMIZATION-ROUND3.md), [4](../PDF-OPTIMIZATION-ROUND4.md), [5](../PDF-OPTIMIZATION-ROUND5.md), [6](../PDF-OPTIMIZATION-ROUND6.md), [7](../PDF-OPTIMIZATION-ROUND7.md), [8](../PDF-OPTIMIZATION-ROUND8.md), [9](../PDF-OPTIMIZATION-ROUND9.md)차 기록을 참고하세요. Jpegli와 Brotli 출력은 개발 실험이며 제품 의존성이나 출력 옵션이 아닙니다.
+상세 기술 기록은 현재 중국어입니다. [검증](../VALIDATION.md), [계획](../../PLAN.md). Jpegli와 Brotli 출력은 개발 실험이며 제품 의존성이나 출력 옵션이 아닙니다.
 
 ## 외부 구성 요소
 

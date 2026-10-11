@@ -47,8 +47,8 @@ parser.add_argument("--worker", required=True, type=Path)
 args = parser.parse_args()
 root = args.directory.resolve()
 cases = {
-    "talvory": [1, 8, 52],
-    "orqavion": [1, 3, 8, 12, 41, 54, 56, 57],
+    "document-a": [1, 8, 52],
+    "document-b": [1, 3, 8, 12, 41, 54, 56, 57],
     "font": [1],
     "raster": [1],
     "binary": [1],

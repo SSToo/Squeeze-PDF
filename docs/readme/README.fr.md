@@ -33,7 +33,7 @@ Haute qualité encode sans perte les pixels déjà rendus : textes et vecteurs s
 
 Le mode de conservation n’exporte qu’un PDF validé plus petit que l’original. Les candidats sont comparés comme fichiers complets, avec retour à la solution précédente en cas d’augmentation. Le mode image respecte le format choisi même si le fichier grossit, et affiche cette augmentation. Les originaux sont en lecture seule, les sorties existantes ne sont jamais écrasées et une modification de l’entrée bloque la validation de la sortie.
 
-Le moteur compare JPEG, Flate exact, palettes Indexed, encodage 1 bit et CCITT G4 selon les entrées prises en charge. Il optimise aussi coefficients JPEG, partage des ressources, certains sous-ensembles de polices CID et disposition du fichier. Le rendu bureau peut comparer le rendu direct à un rendu 2× réduit, dans les budgets et seuils de qualité définis. Voir les [limites d’implémentation et de validation](../PDF-OPTIMIZATION-ROUND9.md).
+Le moteur compare JPEG, Flate exact, palettes Indexed, encodage 1 bit et CCITT G4 selon les entrées prises en charge. Il optimise aussi coefficients JPEG, partage des ressources, certains sous-ensembles de polices CID et disposition du fichier. Le rendu bureau peut comparer le rendu direct à un rendu 2× réduit, dans les budgets et seuils de qualité définis. Voir les [limites d’implémentation et de validation](../VALIDATION.md).
 
 ## Fonctions de bureau
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 Le grand échantillon ajoute un PDF de 24 pages d’environ 138 MB pour les essais d’annulation et de gros fichiers. Les taux synthétiques ne prédisent pas les documents réels. Poppler, pypdf, Pillow et NumPy servent aux vérifications indépendantes de développement, sans dépendance d’exécution.
 
-Dossiers détaillés actuellement en chinois : [validation](../VALIDATION.md), [plan](../../PLAN.md), cycles [1](../PDF-OPTIMIZATION-ROUND1.md), [2](../PDF-OPTIMIZATION-ROUND2.md), [3](../PDF-OPTIMIZATION-ROUND3.md), [4](../PDF-OPTIMIZATION-ROUND4.md), [5](../PDF-OPTIMIZATION-ROUND5.md), [6](../PDF-OPTIMIZATION-ROUND6.md), [7](../PDF-OPTIMIZATION-ROUND7.md), [8](../PDF-OPTIMIZATION-ROUND8.md), [9](../PDF-OPTIMIZATION-ROUND9.md). Les essais Jpegli et Brotli ne sont ni des dépendances produit ni des options de sortie.
+Dossiers détaillés actuellement en chinois : [validation](../VALIDATION.md), [plan](../../PLAN.md). Les essais Jpegli et Brotli ne sont ni des dépendances produit ni des options de sortie.
 
 ## Matériaux tiers
 

@@ -2,7 +2,7 @@
 
 研究日期：2026-10-07。代码及实测基线：Squeeze PDF 0.1.15。
 
-后续状态：0.1.16 已启用严格无损图片、原始分量与写入布局，见 [第六轮验证](PDF-OPTIMIZATION-ROUND6.md)；0.1.19 已加入受限编码链、短 Contents 候选与完整文件回退，见 [第七轮验证](PDF-OPTIMIZATION-ROUND7.md)。自动字体使用收集及其他 P1 / P2 仍未实施。下文保留研究时的代码状态和手工实验，不代表全部已交付。
+后续状态：0.1.16 已启用严格无损图片、原始分量与写入布局，见 [验证记录](VALIDATION.md)；0.1.19 已加入受限编码链、短 Contents 候选与完整文件回退，见 [验证记录](VALIDATION.md)。自动字体使用收集及其他 P1 / P2 仍未实施。下文保留研究时的代码状态和手工实验，不代表全部已交付。
 
 结论：仍有值得做的通用优化，优先补齐编码与绘制结构的覆盖，再推进自动字体子集化。继续保留现有档位的图片尺寸、JPEG 质量与颜色约束。这次完成资料核对、代码审计和开发实验；没有修改产品引擎或发布新版本。
 
@@ -71,7 +71,7 @@ qpdf 官方文档也区分通用的可逆过滤器与图像解码器，并提供
 - 保留复合字形依赖、hinting、宽度、ToUnicode 及原内容字符码。重新编号 GID 时同步映射。
 - 保护编辑字段及与其共享的字体；不能按当前显示文字裁掉未来输入需要的字形。
 
-优先延续已有 Rust subsetter 实验。HarfBuzz 的 retain-gids 也提供保留字形编号的另一条实现路线，仍不能代替 PDF 使用关系分析。[HarfBuzz 子集 API 源码](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h)，[既有字体实验](PDF-OPTIMIZATION-ROUND3.md)。
+优先延续已有 Rust subsetter 实验。HarfBuzz 的 retain-gids 也提供保留字形编号的另一条实现路线，仍不能代替 PDF 使用关系分析。[HarfBuzz 子集 API 源码](https://github.com/harfbuzz/harfbuzz/blob/main/src/hb-subset.h)，[验证记录](VALIDATION.md)。
 
 ### 5. CMYK/YCCK JPEG 的系数域重编码
 

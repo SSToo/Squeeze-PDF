@@ -33,7 +33,7 @@ Windows x64、Apple silicon Mac、Intel Mac のインストーラーは [GitHub 
 
 保持モードは検証に成功し、元より小さい PDF だけを書き出します。候補は PDF 全体のサイズで比較し、大きくなれば以前の方式に戻します。画像モードは容量が増えても選択形式で出力し、増加量を表示します。原本は読み取り専用で、既存の出力を上書きしません。処理中に入力が変わると出力の確定を防ぎます。
 
-対応する入力では JPEG、正確な Flate、Indexed パレット、1 ビット、CCITT G4 を比較します。既存 JPEG の係数、リソース共有、制限付き CID フォントのサブセット、ファイル配置も最適化します。デスクトップでは予算と画質基準の範囲で、直接描画と 2 倍描画後の縮小を比較できます。[実装と検証の範囲](../PDF-OPTIMIZATION-ROUND9.md)を参照してください。
+対応する入力では JPEG、正確な Flate、Indexed パレット、1 ビット、CCITT G4 を比較します。既存 JPEG の係数、リソース共有、制限付き CID フォントのサブセット、ファイル配置も最適化します。デスクトップでは予算と画質基準の範囲で、直接描画と 2 倍描画後の縮小を比較できます。[実装と検証の範囲](../VALIDATION.md)を参照してください。
 
 ## デスクトップ機能
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 大容量サンプルはキャンセル・大きなファイルの試験向けに約 138 MB・24 ページの PDF を追加生成します。合成サンプルの圧縮率は実際の文書を予測しません。Poppler、pypdf、Pillow、NumPy は開発用独立検証ツールで、実行依存ではありません。
 
-詳細記録は現在中国語です。[検証](../VALIDATION.md)、[計画](../../PLAN.md)、最適化の第 [1](../PDF-OPTIMIZATION-ROUND1.md)・[2](../PDF-OPTIMIZATION-ROUND2.md)・[3](../PDF-OPTIMIZATION-ROUND3.md)・[4](../PDF-OPTIMIZATION-ROUND4.md)・[5](../PDF-OPTIMIZATION-ROUND5.md)・[6](../PDF-OPTIMIZATION-ROUND6.md)・[7](../PDF-OPTIMIZATION-ROUND7.md)・[8](../PDF-OPTIMIZATION-ROUND8.md)・[9](../PDF-OPTIMIZATION-ROUND9.md) ラウンドを参照してください。Jpegli と Brotli 出力は実験であり、製品依存・出力オプションではありません。
+詳細記録は現在中国語です。[検証](../VALIDATION.md)と[計画](../../PLAN.md)を参照してください。Jpegli と Brotli 出力は実験であり、製品依存・出力オプションではありません。
 
 ## 外部コンポーネント
 

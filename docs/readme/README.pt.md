@@ -33,7 +33,7 @@ Alta qualidade codifica sem perda os pixels já renderizados; texto e vetores j�
 
 Preservar conteúdo só exporta um PDF validado menor que o original. Os candidatos são comparados como arquivos completos, com recuo quando aumentam. O modo imagem respeita o formato escolhido mesmo se o arquivo crescer e informa o aumento. Originais são somente leitura, saídas existentes nunca são sobrescritas e alterações na entrada impedem a confirmação da saída.
 
-O mecanismo compara JPEG, Flate exato, paletas Indexed, 1 bit e CCITT G4 conforme a compatibilidade. Também otimiza coeficientes JPEG, compartilhamento de recursos, subconjuntos CID restritos e organização do arquivo. O aplicativo pode comparar renderização direta com renderização 2× seguida de redução, dentro de orçamentos e critérios de qualidade. Veja os [limites de implementação e validação](../PDF-OPTIMIZATION-ROUND9.md).
+O mecanismo compara JPEG, Flate exato, paletas Indexed, 1 bit e CCITT G4 conforme a compatibilidade. Também otimiza coeficientes JPEG, compartilhamento de recursos, subconjuntos CID restritos e organização do arquivo. O aplicativo pode comparar renderização direta com renderização 2× seguida de redução, dentro de orçamentos e critérios de qualidade. Veja os [limites de implementação e validação](../VALIDATION.md).
 
 ## Recursos do aplicativo
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 A amostra grande adiciona um PDF de 24 páginas e cerca de 138 MB para testes de cancelamento e arquivos grandes. Taxas sintéticas não preveem documentos reais. Poppler, pypdf, Pillow e NumPy são ferramentas de verificação independente no desenvolvimento, não dependências de execução.
 
-Registros detalhados atualmente em chinês: [validação](../VALIDATION.md), [plano](../../PLAN.md), rodadas [1](../PDF-OPTIMIZATION-ROUND1.md), [2](../PDF-OPTIMIZATION-ROUND2.md), [3](../PDF-OPTIMIZATION-ROUND3.md), [4](../PDF-OPTIMIZATION-ROUND4.md), [5](../PDF-OPTIMIZATION-ROUND5.md), [6](../PDF-OPTIMIZATION-ROUND6.md), [7](../PDF-OPTIMIZATION-ROUND7.md), [8](../PDF-OPTIMIZATION-ROUND8.md) e [9](../PDF-OPTIMIZATION-ROUND9.md). Jpegli e saída Brotli são experimentos, não dependências nem opções de produção.
+Registros detalhados atualmente em chinês: [validação](../VALIDATION.md), [plano](../../PLAN.md). Jpegli e saída Brotli são experimentos, não dependências nem opções de produção.
 
 ## Materiais de terceiros
 

@@ -33,7 +33,7 @@ High quality encodes rendered pixels losslessly; text and vectors have already b
 
 Preserve mode exports only a validated candidate smaller than the original. Candidates are compared as complete PDFs and fall back when larger. Image mode honors the requested format even if the file grows, and reports the increase. Originals are read-only, existing outputs are never overwritten, and a changed input prevents the output from being committed.
 
-The engine compares JPEG and exact Flate, Indexed palette, 1-bit and CCITT G4 candidates where supported. It also optimizes existing JPEG coefficients, resource sharing, restricted CID font subsets and file layout. Desktop rasterization can compare direct rendering with a budgeted 2× render-and-downsample candidate using quality gates. See the [implementation and validation boundaries](../PDF-OPTIMIZATION-ROUND9.md).
+The engine compares JPEG and exact Flate, Indexed palette, 1-bit and CCITT G4 candidates where supported. It also optimizes existing JPEG coefficients, resource sharing, restricted CID font subsets and file layout. Desktop rasterization can compare direct rendering with a budgeted 2× render-and-downsample candidate using quality gates. See the [implementation and validation limits](../VALIDATION.md).
 
 ## Desktop features
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 The large sample adds an approximately 138 MB, 24-page PDF for cancellation and large-file testing. Synthetic compression ratios do not predict real documents. Independent development checks use Poppler, pypdf, Pillow and NumPy; these are not runtime dependencies.
 
-Detailed technical records are currently in Chinese: [validation](../VALIDATION.md), [plan](../../PLAN.md), optimization rounds [1](../PDF-OPTIMIZATION-ROUND1.md), [2](../PDF-OPTIMIZATION-ROUND2.md), [3](../PDF-OPTIMIZATION-ROUND3.md), [4](../PDF-OPTIMIZATION-ROUND4.md), [5](../PDF-OPTIMIZATION-ROUND5.md), [6](../PDF-OPTIMIZATION-ROUND6.md), [7](../PDF-OPTIMIZATION-ROUND7.md), [8](../PDF-OPTIMIZATION-ROUND8.md) and [9](../PDF-OPTIMIZATION-ROUND9.md). Jpegli and Brotli output experiments are not production dependencies or output options.
+Detailed technical records are currently in Chinese: [validation](../VALIDATION.md), [plan](../../PLAN.md). Jpegli and Brotli output experiments are not production dependencies or output options.
 
 ## Third-party materials
 

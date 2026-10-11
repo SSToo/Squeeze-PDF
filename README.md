@@ -29,7 +29,7 @@
 
 “清晰”只指栅格图片像素无损编码，文字与矢量已经栅格化。图片模式不保留可选择文字、矢量路径、链接和书签。桌面模式将可渲染的可见表单与批注合并到图片，隐藏字段不会显示，批注弹窗文字不保留；嵌入附件保留原文件数据。
 
-保留原始内容模式只在候选 PDF 更小且校验通过时导出。 可逆流编码、短内容流合并，以及新增前置图片规范化 / 精确 RGB 方案均与现有路径的完整文件比较，变大时回退；损坏 / 未知编码保留，标签、表单外观与内容流身份统一保护。本轮增加大图分行编码、精确资源共享、CMYK / YCCK 系数优化、自动 CID 字体子集和矢量简化；均衡 / 更小另尝试成对透明图优化。桌面加入有质量门槛的超采样候选与分块传输。实现边界及已完成 / 待完成验收见 [第九轮记录](docs/PDF-OPTIMIZATION-ROUND9.md)。图片模式会导出用户选择的页面格式，即使体积变大，并明确显示增加量。原件只读，已有输出不覆盖；处理中原件发生变化会阻止提交。
+保留原始内容模式只在候选 PDF 更小且校验通过时导出。 可逆流编码、短内容流合并，以及新增前置图片规范化 / 精确 RGB 方案均与现有路径的完整文件比较，变大时回退；损坏 / 未知编码保留，标签、表单外观与内容流身份统一保护。本轮增加大图分行编码、精确资源共享、CMYK / YCCK 系数优化、自动 CID 字体子集和矢量简化；均衡 / 更小另尝试成对透明图优化。桌面加入有质量门槛的超采样候选与分块传输。实现边界及已完成 / 待完成验收见 [验证记录](docs/VALIDATION.md)。图片模式会导出用户选择的页面格式，即使体积变大，并明确显示增加量。原件只读，已有输出不覆盖；处理中原件发生变化会阻止提交。
 
 桌面保留模式的三个档位均会精简独立页面流与可证明调用尺度的嵌套 Form 中的路径小数，按所有已知变换限制每轴坐标误差至约 0.0005 点。Form 分析累计 Matrix、cm 和 UserUnit；内容数组只用于连续状态分析，字形、图案、软遮罩、外观、循环及未知调用环境保持保守。文字定位和颜色参数不参与舍入，极细边缘仍可能变化。保真保留图片原像素尺寸，以 JPEG 95 和完整色度采样重编码受支持图片；仅采用更小的图片候选，图片像素可能变化，保真不表示整个 PDF 严格无损。同时将平移后相同的闭合、纯色填充轮廓复用为矢量 Form，精确平移坐标，不转换成图片。复用覆盖独立页面流及带自身资源的嵌套 Form，保留原 Form 的 Matrix、BBox 和透明组；核对所有已知调用点的继承颜色空间，未知调用环境仅处理明确设置纯色的路径。相交轮廓保持一组以保留字形空洞；图案 / 渐变、裁剪、开放路径和需要保真策略的交互文档不参与复用，只有计算收益为正才提交；后续流建立缓存后，会在预算内重新评估此前未采用的候选。新增共享矢量资源按对象号固定写入顺序，避免随机哈希顺序造成输出体积波动。其他结构优化包括：合并字典及内容相同的数据流，清除无法从文档引用到的对象。JPEG 使用 MozJPEG 的 Trellis、渐进扫描优化、去振铃与优化 Huffman；质量 90 以上采用完整色度采样。桌面图片模式使用本地 PDF.js，以最终尺寸直接渲染为基线，在预算内另尝试 2 倍渲染后缩小的候选；Rust 逐页编码和重建 PDF，比较完整体积及双固定参考的画质后选择，不产生 JPEG 中间文件。CLI 的默认独立渲染仍采用 hayro 和预算内的 2 倍超采样。受支持的原图与整页图片比较原编码（保留模式）、JPEG、无损 Flate 五种行预测及固定 / 自适应策略、精确 Indexed 调色板、真实黑白 1 位打包与 CCITT G4 无损候选；成本包含字典、预测参数及调色板。自动灰度仅合并本来就完全相同的 RGB 通道，不对灰色边缘二值化。透明遮罩默认作 8 位无损 Flate 重编码，保持透明度样本、尺寸及颜色空间；均衡 / 更小另对符合条件的主图与软遮罩尝试成对降采样，保真保持尺寸。原有常规 RGB / Gray JPEG 另尝试系数域 Huffman 与顺序 / 渐进扫描优化，量化表、系数、采样和标记保持；携带 ICC 的 JPEG 可走此路径，继续禁止像素重编码。每份文件可缓存最多 32 MB / 256 份相同像素的 JPEG 编码，完整区分尺寸、通道与质量；两种模式共享策略，输出字节不变。超过 256 色的相关 RGB 在分散行探测后，可于预算内比较额外精确 Flate 行预测；噪声 / 照片类负例跳过新增工作，JPEG 解码像素不参与这条精确候选。整页模式从同一份已渲染像素比较完整编码方案。纯色字节流避免重复预测尝试。小文件沿用对象流 100 / 等级 6，优化后至少 1000 个对象的文档使用分组 1000 / 等级 9；写入通过缓冲器完成，提交前检查刷新与往返解析。
 
@@ -107,13 +107,9 @@ node scripts/benchmark-round1.mjs tmp/round1-benchmark /path/to/baseline-worker
 cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 ```
 
-原 `make_sample --large` 命令额外生成约 138 MB 的 24 页文件，供取消及大文件流程测试。生成样本的高压缩率不能代表真实扫描件或商业 PDF 的表现。`benchmark-round1.mjs` 对相同输入比较新旧 worker、两种模式和三档；`scripts/verify-codec-benchmark.py` 用开发期 Poppler / pypdf / Pillow / NumPy 独立检查，详见 [第一轮结果](docs/PDF-OPTIMIZATION-ROUND1.md)。第二轮的 Form、JPEG 参数与 Jpegli 对照见 [第二轮结果](docs/PDF-OPTIMIZATION-ROUND2.md)；Jpegli 仅用于开发期实验，未成为产品依赖。`jpeg_profiles` 示例及 `benchmark-jpeg-profiles.py` 保存相同像素下的编码 / 局部指标，`verify-vector-pages.mjs` 用 PDF.js 以 200 DPI 检查指定页面。
+`make_sample --large` 额外生成约 138 MB 的 24 页文件，供取消及大文件流程测试。生成样本的高压缩率不能代表真实扫描件或商业 PDF 的表现。`benchmark-round1.mjs` 对相同输入比较新旧 worker、两种模式和三档；`scripts/verify-codec-benchmark.py` 使用开发期 Poppler / pypdf / Pillow / NumPy 独立检查。通用验证范围与限制见 [验证记录](docs/VALIDATION.md)。
 
-第三轮的每图片保护、资源清理、样本去重、G4 与受限字体 / JP2 实验见 [第三轮结果](docs/PDF-OPTIMIZATION-ROUND3.md)。第四轮 [Brotli 格式实验](docs/PDF-OPTIMIZATION-ROUND4.md)完成体积与阅读器矩阵；兼容性未通过，没有加入产品编码选项。可用 `cargo run --release -p squeeze-core --example brotli_experiment --locked -- compressed.pdf tmp/brotli-probe` 复测单文件流候选；测试文件只在开发目录保存。
-
-第五轮扩大通用输入与资源优化，见 [第五轮结果](docs/PDF-OPTIMIZATION-ROUND5.md)：除原有 XObject 外，清理可证明未使用的 Font / ColorSpace / ExtGState / Shading / Properties；合并引用编号不同但子图等价的资源；补充 Indexed、既有 G4 与 CMYK 原图路径。Zopfli 在工作量和软时间预算内无损重压缩部分 Flate，解码字节不变，保留 DecodeParms。CLI/API 的 `lossless` 不重新量化图片或改变分辨率，可以改变等价的 Flate 编码；交互共享图片保持原编码。
-
-第六轮实现受限原始颜色分量编码、明确默认 Decode 识别和完整文件布局竞争，并让严格 Lossless 使用精确图片候选；见 [第六轮结果](docs/PDF-OPTIMIZATION-ROUND6.md)。`native_samples` 核对原始分量与映射，`writing` 在预算内比较原布局、压紧编号和引用频率布局；JSON 的 `writer.layout`／`writer.candidates` 记录实际选择与候选完整字节。31 类样本、217 对组合均未变大；真实文件本轮改善有限，不把自建渐变的压缩比例推广到一般文档。
+`jpeg_profiles` 示例及 `benchmark-jpeg-profiles.py` 保存相同像素下的编码与局部指标；`verify-vector-pages.mjs` 使用 PDF.js 检查指定页面。Jpegli、JPEG2000 和 Brotli 输出仅用于开发实验，没有成为产品编码选项或新增运行依赖。
 
 ## 支持范围与限制
 

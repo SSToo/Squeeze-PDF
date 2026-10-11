@@ -33,7 +33,7 @@ Hohe Qualität kodiert bereits gerenderte Pixel verlustfrei; Text und Vektoren w
 
 Der Erhaltungsmodus exportiert nur ein validiertes PDF, das kleiner als das Original ist. Kandidaten werden als vollständige Dateien verglichen; bei Wachstum wird zurückgefallen. Der Bildmodus erzeugt das gewählte Format auch bei größerer Datei und zeigt den Zuwachs an. Originale werden nur gelesen, bestehende Ausgaben niemals überschrieben. Änderungen an der Eingabe während der Verarbeitung verhindern das Abschließen der Ausgabe.
 
-Die Engine vergleicht je nach Unterstützung JPEG, exaktes Flate, Indexed-Paletten, 1-Bit- und CCITT-G4-Kandidaten. Hinzu kommen JPEG-Koeffizientenoptimierung, gemeinsame Ressourcen, eingeschränkte CID-Schriftuntergruppen und Dateilayouts. Die Desktop-App kann innerhalb von Budgets und Qualitätsschwellen direktes Rendern mit 2×-Rendern und anschließendem Verkleinern vergleichen. Siehe [Implementierungs- und Validierungsgrenzen](../PDF-OPTIMIZATION-ROUND9.md).
+Die Engine vergleicht je nach Unterstützung JPEG, exaktes Flate, Indexed-Paletten, 1-Bit- und CCITT-G4-Kandidaten. Hinzu kommen JPEG-Koeffizientenoptimierung, gemeinsame Ressourcen, eingeschränkte CID-Schriftuntergruppen und Dateilayouts. Die Desktop-App kann innerhalb von Budgets und Qualitätsschwellen direktes Rendern mit 2×-Rendern und anschließendem Verkleinern vergleichen. Siehe [Implementierungs- und Validierungsgrenzen](../VALIDATION.md).
 
 ## Desktop-Funktionen
 
@@ -122,7 +122,7 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 Die große Probe erzeugt zusätzlich ein PDF mit etwa 138 MB und 24 Seiten für Abbruch- und Großdateitests. Synthetische Kompressionsraten sagen reale Dokumente nicht voraus. Poppler, pypdf, Pillow und NumPy dienen unabhängigen Entwicklungsprüfungen und sind keine Laufzeitabhängigkeiten.
 
-Ausführliche Aufzeichnungen derzeit auf Chinesisch: [Validierung](../VALIDATION.md), [Plan](../../PLAN.md), Runden [1](../PDF-OPTIMIZATION-ROUND1.md), [2](../PDF-OPTIMIZATION-ROUND2.md), [3](../PDF-OPTIMIZATION-ROUND3.md), [4](../PDF-OPTIMIZATION-ROUND4.md), [5](../PDF-OPTIMIZATION-ROUND5.md), [6](../PDF-OPTIMIZATION-ROUND6.md), [7](../PDF-OPTIMIZATION-ROUND7.md), [8](../PDF-OPTIMIZATION-ROUND8.md) und [9](../PDF-OPTIMIZATION-ROUND9.md). Jpegli und Brotli-Ausgabe sind Experimente, keine Produktabhängigkeiten oder Ausgabeoptionen.
+Ausführliche Aufzeichnungen derzeit auf Chinesisch: [Validierung](../VALIDATION.md), [Plan](../../PLAN.md). Jpegli und Brotli-Ausgabe sind Experimente, keine Produktabhängigkeiten oder Ausgabeoptionen.
 
 ## Materialien Dritter
 
