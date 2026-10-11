@@ -29,6 +29,8 @@ cargo test --workspace --locked
 
 前端渲染或语言更改另运行 `npm run test:render` 和 `npm run test:i18n`。CI 在 Windows x64、macOS arm64 / Intel 上执行检查和打包；本机测试结果不能代替其他平台的实机验收。
 
+自动发布或安装包收集逻辑更改需运行 `node --test scripts/test-release.mjs`。版本标签发布步骤见 [发布指南](docs/RELEASING.md)。
+
 部分独立画质验证脚本需要 Python 和额外的 PDF / 图像工具。`desktop-raster-baseline.mjs` 默认使用 PATH 中的 `python3`，可用 `SQUEEZE_QA_PYTHON` 指定已装好验证依赖的解释器；这些不是产品运行依赖。
 
 ## Logo 与界面颜色

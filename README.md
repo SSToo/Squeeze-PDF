@@ -4,6 +4,8 @@
 
 面向 Windows 和 macOS 的开源离线 PDF 压缩 MVP。Tauri 2 + React 界面，Rust 实现压缩策略、图片处理、页面重建与文件保护；PDF 读写使用 lopdf，桌面整页渲染使用本地 PDF.js，CLI 默认渲染使用 hayro，图片解码使用 image，JPEG 编码通过 Rust 封装调用静态链接的 MozJPEG。运行时无需 qpdf、Ghostscript 或 Python。
 
+安装包可从 [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) 下载：Windows x64、Mac Apple 芯片和 Mac Intel。推送与软件版本一致的 `v` 标签后，三平台构建成功会自动上传安装包和校验文件，详见 [发布指南](docs/RELEASING.md)。
+
 ## 开源许可
 
 本项目自有代码采用 [Apache-2.0](LICENSE)，版权署名见 [NOTICE](NOTICE)。允许使用、修改、再分发和商业使用，包括基于本项目开发闭源产品；需遵守保留许可 / 署名及标示修改等要求。专利授权范围与条件以 [Apache 官方许可正文](https://www.apache.org/licenses/LICENSE-2.0) 为准。

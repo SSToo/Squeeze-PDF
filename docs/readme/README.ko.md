@@ -4,6 +4,8 @@
 
 Windows와 macOS용 오픈 소스 오프라인 PDF 압축 프로그램이며, 현재 MVP 단계입니다. 인터페이스는 Tauri 2와 React를 사용합니다. Rust로 압축 전략, 이미지 처리, 페이지 재구성, 파일 보호를 구현했습니다. PDF 읽기·쓰기는 lopdf, 데스크톱 렌더링은 로컬 PDF.js, CLI 기본 렌더링은 hayro를 사용합니다. JPEG 인코딩은 Rust 바인딩으로 정적 링크한 MozJPEG를 사용합니다. 실행 시 qpdf, Ghostscript, Python은 필요하지 않습니다.
 
+[GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases)에서 Windows x64, Apple silicon Mac, Intel Mac 설치 파일을 다운로드할 수 있습니다. 앱 버전과 일치하는 `v` 태그를 푸시하면 세 플랫폼의 빌드가 모두 성공한 뒤 설치 파일과 체크섬을 자동으로 게시합니다. [릴리스 가이드](../RELEASING.md)(중국어/영어)를 참고하세요.
+
 ## 라이선스
 
 프로젝트 자체 코드는 [Apache-2.0](../../LICENSE)이며 저작권 표시는 [NOTICE](../../NOTICE)에 있습니다. 라이선스와 고지 보존, 변경 사항 표시 등 조건을 준수하면 상업적 이용과 비공개 소스 파생 제품 개발이 가능합니다. 특허 허여의 범위와 조건은 라이선스 본문을 따릅니다.

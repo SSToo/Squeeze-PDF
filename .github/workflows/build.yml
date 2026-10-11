@@ -3,10 +3,17 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      validate_artifacts_run:
+        description: "Validate release assets from a successful run ID (no publication)"
+        type: string
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
   desktop:
+    if: github.event_name != 'workflow_dispatch' || inputs.validate_artifacts_run == ''
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +36,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/release.mjs check-version "$RELEASE_TAG"
+        shell: bash
+      - name: Test release preparation and publishing
+        run: node --test scripts/test-release.mjs
       - uses: dtolnay/rust-toolchain@1.92.0
         with:
           components: rustfmt,clippy
@@ -51,4 +66,56 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/bundle/
             third-party/
+          if-no-files-found: error
+  release:
+    name: Publish GitHub Release
+    needs: desktop
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: squeeze-*
+          path: release-artifacts
+      - name: Upload installers and checksums, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/release.mjs publish "$RELEASE_TAG" release-artifacts release-assets
+  validate-release:
+    name: Validate release assets
+    if: github.event_name == 'workflow_dispatch' && inputs.validate_artifacts_run != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node --test scripts/test-release.mjs
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: squeeze-*
+          path: release-artifacts
+          run-id: ${{ inputs.validate_artifacts_run }}
+          github-token: ${{ github.token }}
+      - name: Prepare installers and checksums
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/release.mjs prepare "v$VERSION" release-artifacts release-assets
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-preview
+          path: release-assets/
           if-no-files-found: error

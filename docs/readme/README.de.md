@@ -4,6 +4,8 @@
 
 Ein quelloffener, vollständig offline arbeitender PDF-Kompressor für Windows und macOS, derzeit im MVP-Stadium. Die Oberfläche nutzt Tauri 2 und React. Rust implementiert Kompressionsstrategien, Bildverarbeitung, Seitenrekonstruktion und Dateischutz. lopdf liest und schreibt PDFs; die Desktop-App rendert mit lokalem PDF.js, die CLI standardmäßig mit hayro. MozJPEG wird über Rust statisch eingebunden. Zur Laufzeit sind weder qpdf noch Ghostscript oder Python erforderlich.
 
+Installationspakete für Windows x64, macOS Apple silicon und macOS Intel stehen unter [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) bereit. Ein `v`-Tag, das der App-Version entspricht, veröffentlicht nach drei erfolgreichen Builds automatisch die Installationspakete und Prüfsummen. Siehe [Veröffentlichungsanleitung](../RELEASING.md) (Chinesisch/Englisch).
+
 ## Lizenz
 
 Der eigene Projektcode steht unter [Apache-2.0](../../LICENSE), mit Urheberhinweisen in [NOTICE](../../NOTICE). Kommerzielle Nutzung und abgeleitete Produkte mit geschlossenem Quellcode sind erlaubt, sofern Lizenzbedingungen wie die Beibehaltung von Hinweisen und Kennzeichnung von Änderungen erfüllt werden. Umfang und Bedingungen der Patentlizenz ergeben sich aus dem Lizenztext.
