@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import {
   cpSync,
@@ -55,6 +57,38 @@ test("reviewed assets, source archives, full notices and MPL sources are present
     sources: 2,
   });
 });
+test("Windows Git checkout preserves reviewed license and source bytes", () =>
+  fixture((dir) => {
+    const manifest = JSON.parse(readFileSync("licenses/pdfjs-assets.json"));
+    cpSync(".gitattributes", join(dir, ".gitattributes"));
+    cpSync("licenses", join(dir, "licenses"), { recursive: true });
+    for (const name of ["LICENSE", "NOTICE"]) cpSync(name, join(dir, name));
+    const git = (...args) =>
+      execFileSync("git", ["-c", "core.autocrlf=true", ...args], {
+        cwd: dir,
+        stdio: "pipe",
+      });
+    git("init", "--quiet");
+    git("add", "--", ".");
+    rmSync(join(dir, "licenses"), { recursive: true });
+    for (const name of ["LICENSE", "NOTICE"]) rmSync(join(dir, name));
+    git("checkout-index", "--all", "--force");
+    for (const component of manifest.components)
+      for (const file of [
+        ...component.license_files,
+        ...(component.sources || []),
+        ...(component.provenance || []),
+      ])
+        assert.equal(
+          createHash("sha256")
+            .update(readFileSync(join(dir, file.path)))
+            .digest("hex"),
+          file.sha256,
+          `Git changed reviewed file bytes: ${file.path}`,
+        );
+    for (const name of ["LICENSE", "NOTICE", "licenses/MPL-2.0.txt"])
+      assert.deepEqual(readFileSync(join(dir, name)), readFileSync(name));
+  }));
 test("a PDF.js version upgrade requires a fresh license and source review", () =>
   fixture((dir) => {
     writeFileSync(
