@@ -57,3 +57,5 @@ cp src-tauri/icons/32x32.png public/favicon.png
 - Pull Request 说明具体问题、最终行为、测试结果和兼容性边界。生成目录 `target/`、`dist/`、`third-party/` 及本地 `tmp/` 不纳入 Git。
 
 公开提交中的测试记录使用自建样本或匿名编号，不包含用户真实文件名、本地路径、原件指纹或文档内容。
+
+更新逻辑检查：`npm run test:updater`。签名与普通开发打包方式见 [发布指南](docs/RELEASING.md)。

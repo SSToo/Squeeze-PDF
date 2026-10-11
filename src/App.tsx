@@ -24,6 +24,10 @@ import {
   Languages,
 } from "lucide-react";
 import PdfPreview from "./PdfPreview";
+import UpdateCenter from "./UpdateCenter";
+import { UpdateController } from "./updater";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { useI18n } from "./i18n/I18n";
 import { languages, type Language } from "./i18n/locale";
 import type { MessageKey } from "./i18n/catalog";
@@ -121,6 +125,27 @@ export default function App() {
   const cancel = useRef(false);
   const busyRef = useRef(false);
   const importRef = useRef(false);
+  const updatingRef = useRef(false);
+  const [updating, setUpdating] = useState(false);
+  const [updater] = useState(
+    () =>
+      new UpdateController(
+        { check: () => check({ timeout: 15_000 }), relaunch },
+        {
+          acquire: () => {
+            if (busyRef.current || importRef.current || updatingRef.current)
+              return false;
+            updatingRef.current = true;
+            setUpdating(true);
+            return true;
+          },
+          release: () => {
+            updatingRef.current = false;
+            setUpdating(false);
+          },
+        },
+      ),
+  );
   const filesRef = useRef<Job[]>([]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -143,7 +168,7 @@ export default function App() {
       current.map((j) => (j.path === path ? { ...j, ...patch } : j)),
     );
   const add = async (paths: string[]) => {
-    if (busyRef.current || importRef.current) return;
+    if (busyRef.current || importRef.current || updatingRef.current) return;
     const pdfPaths = paths.filter((path) => /\.pdf$/i.test(path));
     if (!pdfPaths.length) {
       setMessage("请添加 PDF 文件。");
@@ -212,6 +237,7 @@ export default function App() {
     };
   }, []);
   async function pickFiles() {
+    if (updatingRef.current) return;
     if (!native) {
       setMessage("请运行桌面应用来添加和压缩本地文件。");
       return;
@@ -229,6 +255,7 @@ export default function App() {
     }
   }
   async function pickDirectory() {
+    if (updatingRef.current) return;
     if (!native) {
       setMessage("请在桌面应用中选择输出目录。");
       return;
@@ -249,7 +276,7 @@ export default function App() {
     }
   }
   async function run(only?: string) {
-    if (busyRef.current) return;
+    if (busyRef.current || importRef.current || updatingRef.current) return;
     const queue = filesRef.current.filter(
       (j) => !j.error && (!only || j.path === only),
     );
@@ -265,7 +292,11 @@ export default function App() {
       if (!outputDirectory || cancel.current) return;
       setDone(0);
       queue.forEach((j) =>
-        update(j.path, { status: "queued", report: undefined, phase: undefined }),
+        update(j.path, {
+          status: "queued",
+          report: undefined,
+          phase: undefined,
+        }),
       );
       for (const job of queue) {
         if (cancel.current) {
@@ -276,8 +307,11 @@ export default function App() {
         try {
           const report =
             outputMode === "raster"
-              ? await compressRaster(job.path, outputDirectory, preset, (phase) =>
-                  update(job.path, { phase }),
+              ? await compressRaster(
+                  job.path,
+                  outputDirectory,
+                  preset,
+                  (phase) => update(job.path, { phase }),
                 )
               : await invoke<Report>("compress_file", {
                   path: job.path,
@@ -353,6 +387,7 @@ export default function App() {
           <span className="offline">
             <LockKeyhole size={13} /> {t("完全本地处理")}
           </span>
+          <UpdateCenter controller={updater} occupied={busy || importing} />
           <button
             className="icon-button"
             aria-label={dark ? t("切换浅色主题") : t("切换深色主题")}
@@ -815,7 +850,7 @@ export default function App() {
               ) : (
                 <button
                   className="primary start"
-                  disabled={!ready.length || importing}
+                  disabled={!ready.length || importing || updating}
                   onClick={() => void run()}
                 >
                   {t("开始压缩")} <ArrowRight size={17} />

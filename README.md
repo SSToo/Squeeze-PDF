@@ -6,6 +6,8 @@
 
 安装包可从 [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases) 下载：Windows x64、Mac Apple 芯片和 Mac Intel。推送与软件版本一致的 `v` 标签后，三平台构建成功会自动上传安装包和校验文件，详见 [发布指南](docs/RELEASING.md)。
 
+从 0.1.25 起，正式版启动约 5 秒后自动检查 GitHub 上的稳定版更新，长时间运行时每 24 小时检查一次；顶栏更新图标可手动检查。发现新版本后由你选择下载安装并重启，当前文件任务完成前禁止安装。离线检查失败不会打断压缩。联网仅用于版本检查与更新下载，不上传 PDF。0.1.24 及更早版本需先手动安装一次支持更新的新版本。
+
 ## 开源许可
 
 本项目自有代码采用 [Apache-2.0](LICENSE)，版权署名见 [NOTICE](NOTICE)。允许使用、修改、再分发和商业使用，包括基于本项目开发闭源产品；需遵守保留许可 / 署名及标示修改等要求。专利授权范围与条件以 [Apache 官方许可正文](https://www.apache.org/licenses/LICENSE-2.0) 为准。

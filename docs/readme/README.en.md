@@ -6,6 +6,8 @@ An open-source, offline PDF compressor for Windows and macOS, currently an MVP. 
 
 Download Windows x64, macOS Apple silicon and macOS Intel installers from [GitHub Releases](https://github.com/SSToo/Squeeze-PDF/releases). Pushing a `v` tag matching the app version automatically publishes the installers and checksums after all three builds succeed. See the [release guide](../RELEASING.md) (Chinese/English).
 
+Starting with 0.1.25, release builds check for stable updates on GitHub about five seconds after launch and every 24 hours while running. Use the update icon in the header to check manually. Installation and restart require your choice and wait for active file tasks to finish. Offline checks do not interrupt compression. Only version checks and update downloads use the network; PDFs are never uploaded. Version 0.1.24 and earlier need one manual upgrade first.
+
 ## License
 
 Original project code is licensed under [Apache-2.0](../../LICENSE), with attribution in [NOTICE](../../NOTICE). Commercial use and closed-source derivatives are permitted, subject to the license's notice, modification and other requirements. The license text governs the patent grant and its conditions.

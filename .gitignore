@@ -10,3 +10,4 @@
 /third-party/
 __pycache__/
 *.py[cod]
+*.key

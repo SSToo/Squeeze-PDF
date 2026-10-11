@@ -56,10 +56,24 @@ jobs:
       - run: npm run check
       - run: npm run test:render
       - run: npm run test:i18n
+      - run: npm run test:updater
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
-      - run: npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Build installers and signed updates
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$TAURI_SIGNING_PRIVATE_KEY" ]]; then
+            npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "Version releases require TAURI_SIGNING_PRIVATE_KEY."
+            exit 1
+          else
+            npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: squeeze-${{ matrix.target }}

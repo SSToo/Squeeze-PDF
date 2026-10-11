@@ -178,6 +178,105 @@ figure {
   background: var(--soft);
   color: var(--accent);
 }
+.update-trigger {
+  position: relative;
+}
+.update-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.update-dialog {
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  padding: 26px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 80px #0003;
+}
+.update-dialog::backdrop {
+  background: #0007;
+}
+.update-heading,
+.update-status,
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-heading {
+  justify-content: space-between;
+  align-items: start;
+}
+.update-heading h2 {
+  font-size: 19px;
+}
+.update-heading p,
+.update-hint,
+.update-progress span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.update-status {
+  margin: 25px 0 16px;
+  align-items: start;
+}
+.update-status svg {
+  color: var(--accent);
+}
+.update-notes {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.update-hint + .update-hint {
+  margin-top: 8px;
+}
+.update-progress {
+  margin-bottom: 16px;
+}
+.update-progress progress {
+  display: block;
+  width: 100%;
+  height: 10px;
+  accent-color: var(--accent);
+  margin-bottom: 8px;
+}
+.update-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.update-actions a {
+  color: var(--text);
+  text-decoration: none;
+}
+.update-spinning {
+  animation: update-spin 1.2s linear infinite;
+}
+@keyframes update-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-spinning {
+    animation: none;
+  }
+}
 main {
   max-width: 1360px;
   margin: 0 auto;

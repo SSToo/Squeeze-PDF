@@ -579,18 +579,30 @@ fn open_result(
             .map_err(|e| e.to_string())
     }
 }
+#[tauri::command]
+fn open_release_notes(app: tauri::AppHandle) -> Result<(), String> {
+    app.opener()
+        .open_url(
+            "https://github.com/SSToo/Squeeze-PDF/releases",
+            None::<&str>,
+        )
+        .map_err(|e| e.to_string())
+}
 fn main() {
     tauri::Builder::default()
         .manage(Arc::new(EngineState::default()))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             import_files,
             compress_file,
             cancel_task,
             read_pdf,
             open_result,
+            open_release_notes,
             begin_raster,
             write_raster_page,
             abort_raster,
