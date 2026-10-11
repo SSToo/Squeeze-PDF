@@ -37,6 +37,7 @@ jobs:
       - run: npm ci
       - run: node scripts/prepare-worker.mjs
       - run: npm run notices
+      - run: npm run test:licenses
       - run: npm run check
       - run: npm run test:render
       - run: npm run test:i18n

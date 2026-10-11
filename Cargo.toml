@@ -4,10 +4,10 @@ default-members = ["crates/squeeze-core", "crates/squeeze-cli"]
 resolver = "3"
 
 [workspace.package]
-version = "0.1.21"
+version = "0.1.24"
 edition = "2024"
 rust-version = "1.92"
-license = "LicenseRef-Proprietary"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 lopdf = { version = "=0.45.0", default-features = false }

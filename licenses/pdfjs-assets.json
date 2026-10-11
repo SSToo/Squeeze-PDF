@@ -1,0 +1,83 @@
+{
+  "pdfjs_version": "6.4.299",
+  "components": [
+    {
+      "name": "Liberation Sans",
+      "version": "1.07.4 (PDF.js fonts)",
+      "license": "GPL-2.0 with Liberation font exceptions",
+      "repository": "https://github.com/liberationfonts/liberation-1.7-fonts",
+      "files": [
+        {
+          "path": "standard_fonts/LiberationSans-Bold.ttf",
+          "sha256": "361c61b82d575c5c35fd9157fda8b0194bcfcd0d88ea8521a4fb5dd53d33dddc"
+        },
+        {
+          "path": "standard_fonts/LiberationSans-BoldItalic.ttf",
+          "sha256": "a224075ac17495ad0a3af3bc0a419ac0704a8b3fd1095456201fb9b095fc281d"
+        },
+        {
+          "path": "standard_fonts/LiberationSans-Italic.ttf",
+          "sha256": "832b4406dbef23628800d3aaad21048534ac84d7e3ad955be83b8172ed8ef512"
+        },
+        {
+          "path": "standard_fonts/LiberationSans-Regular.ttf",
+          "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f"
+        }
+      ],
+      "license_files": [
+        {
+          "path": "licenses/liberation-1.07.4-LICENSE.txt",
+          "sha256": "d2c4d5b3e115a519cb58eb691aa64538397e2611f9ebe801392cf9667997e7dc",
+          "url": "https://raw.githubusercontent.com/mozilla/pdf.js/v6.4.299/external/standard_fonts/LICENSE_LIBERATION"
+        }
+      ],
+      "sources": [
+        {
+          "path": "licenses/font-sources/liberation-fonts-1.07.4.tar.gz",
+          "sha256": "ad98b7498dc2992f7f0868f79b65ce4a720a3acdb63ab3f1f1cb6881117a5406",
+          "url": "https://releases.pagure.org/liberation-fonts/liberation-fonts-1.07.4.tar.gz"
+        },
+        {
+          "path": "licenses/font-sources/pdfjs-liberation-1.07.4-ttx.tar.gz",
+          "sha256": "2750c1446ea31839af039a531a6fb52d112516acc0be6166187b1b7d08872e09",
+          "description": "Editable TTX sources for the four actual PDF.js fonts, with reconstruction script and license"
+        }
+      ],
+      "provenance": [
+        {
+          "path": "licenses/pdfjs-standard-fonts-README.md",
+          "sha256": "f21d2a0f65f7dd53bbe42ca51b40c4331f566fe91a71e689682c1b762889c47e",
+          "url": "https://raw.githubusercontent.com/mozilla/pdf.js/v6.4.299/external/standard_fonts/README.md"
+        }
+      ]
+    },
+    {
+      "name": "QuickJS and PDF.js QuickJS sandbox",
+      "version": "bundled with pdfjs-dist 6.4.299",
+      "license": "MIT",
+      "repository": "https://github.com/mozilla/pdf.js.quickjs",
+      "files": [
+        {
+          "path": "wasm/quickjs-eval.js",
+          "sha256": "fe7930418e869791ce892567dbd0bc4698152b7e550b5cefa553992c56ddc325"
+        },
+        {
+          "path": "wasm/quickjs-eval.wasm",
+          "sha256": "7bcacc9f22cacf7e9b23866d2a6d1639693d40c7f144e41b7c69ed37ba9cbe8f"
+        }
+      ],
+      "license_files": [
+        {
+          "path": "licenses/quickjs-LICENSE.txt",
+          "sha256": "598fd7fc928e4350abce36e337ba5a1346923c5c692f5be92c3d8e29ddd7c18d",
+          "url": "https://raw.githubusercontent.com/bellard/quickjs/3d5e064e9dd67c70f7962836505a7fa067bf0a4e/LICENSE"
+        },
+        {
+          "path": "licenses/pdfjs-quickjs-LICENSE.txt",
+          "sha256": "7fdaed3d938f3dfce7189db07e74773c23789143a55db81a95d09dcbfda267b0",
+          "url": "https://raw.githubusercontent.com/mozilla/pdf.js.quickjs/e2c5bfc8194b16f5973eea5e4e025b67be3c1015/LICENSE"
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,14 @@
 # Squeeze PDF
 
-面向 Windows 和 macOS 的离线 PDF 压缩 MVP。Tauri 2 + React 界面，Rust 实现压缩策略、图片处理、页面重建与文件保护；PDF 读写使用 lopdf，桌面整页渲染使用本地 PDF.js，CLI 默认渲染使用 hayro，图片解码使用 image，JPEG 编码通过 Rust 封装调用静态链接的 MozJPEG。运行时无需 qpdf、Ghostscript 或 Python。
+[English](docs/readme/README.en.md) · **简体中文** · [Français](docs/readme/README.fr.md) · [Español](docs/readme/README.es.md) · [한국어](docs/readme/README.ko.md) · [日本語](docs/readme/README.ja.md) · [Deutsch](docs/readme/README.de.md) · [Português](docs/readme/README.pt.md)
+
+面向 Windows 和 macOS 的开源离线 PDF 压缩 MVP。Tauri 2 + React 界面，Rust 实现压缩策略、图片处理、页面重建与文件保护；PDF 读写使用 lopdf，桌面整页渲染使用本地 PDF.js，CLI 默认渲染使用 hayro，图片解码使用 image，JPEG 编码通过 Rust 封装调用静态链接的 MozJPEG。运行时无需 qpdf、Ghostscript 或 Python。
+
+## 开源许可
+
+本项目自有代码采用 [Apache-2.0](LICENSE)，版权署名见 [NOTICE](NOTICE)。允许使用、修改、再分发和商业使用，包括基于本项目开发闭源产品；需遵守保留许可 / 署名及标示修改等要求。专利授权范围与条件以 [Apache 官方许可正文](https://www.apache.org/licenses/LICENSE-2.0) 为准。
+
+第三方库、字体及其他资产继续适用原许可证，详见文末的第三方依赖说明。分发包在 `third-party/PROJECT-LICENSE.txt` 和 `PROJECT-NOTICE.txt` 中提供项目许可和署名，并保留第三方许可及所需源码。参与开发见 [CONTRIBUTING.md](CONTRIBUTING.md)，授权变更与验证记录见 [开源准备记录](docs/OPEN-SOURCE.md)。
 
 ## 两种输出模式
 
@@ -32,7 +40,7 @@
 - 输出目录选择、同名自动编号、取消、重试、打开结果和所在目录。
 - 记住模式、档位、目录和主题；文件队列仅保存在本次会话。
 - 明暗切换右侧的语言图标可弹出菜单，支持 English、中文、Français、Español、한국어、日本語、Deutsch、Português。首次跟随受支持的系统语言，否则使用英文；后续记住选择。
-- 深色主题使用炭灰背景、灰色面板和明亮的操作按钮，插画及选中状态一起适配。
+- 使用透明 Logo 和红色点缀；深色主题使用炭灰背景，插画及选中状态一起适配。
 - 界面、任务阶段、错误、处理说明及预览控件随语言立即更新，切换不影响正在运行的任务。文件名、路径和底层未知技术错误保留原值。中文目前为简体。
 
 ## 开发运行
@@ -55,6 +63,7 @@ cargo test --workspace --locked
 
 node scripts/prepare-worker.mjs
 npm run notices
+npm run test:licenses
 npm run check
 npm run test:render
 npm run test:i18n
@@ -122,8 +131,10 @@ cargo run -p squeeze-core --example make_sample -- tmp/samples --large
 
 ## 第三方依赖
 
-锁定文件固定构建依赖。`npm run notices` 收集依赖清单、原许可文本、hayro 上游 NOTICE、PDF.js 字体及 WASM 通知，并附带未修改 MPL 依赖源码；构建时放入应用资源的 `third-party/`。生成清单保守包含构建依赖，正式商业发布前应按实际分发内容复核。
+锁定文件固定构建依赖。`npm run notices` 收集依赖清单、原许可文本、hayro 上游 NOTICE、PDF.js 字体及 WASM 通知，包括 QuickJS 引擎和 Mozilla 沙箱的 MIT 声明；同时附带未修改 MPL 依赖完整源码、Liberation 1.07.4 上游源码及实际随包字体的可编辑源码和还原脚本。构建时全部放入应用资源的 `third-party/`。获取及重建方式见随包 [SOURCE-CODE.md](licenses/SOURCE-CODE.md)，版本和哈希记录见 [许可补齐记录](docs/LICENSING-0.1.22.md)。生成清单保守包含构建依赖。
 
-自研范围包括压缩策略、PDF 图片分析、降采样、页面重建、文件保护与验证；标准格式解析及解码使用 Rust 基础库，桌面整页渲染使用 PDF.js，CLI 默认渲染使用 hayro，JPEG 编码使用静态链接的 MozJPEG C 库，精确黑白图的 G4 编码使用 MIT 许可的纯 Rust `fax 0.3.0`。开发期 CID 字体子集实验使用 `subsetter 0.2.6`，未接入默认引擎；实验不会随软件分发测试字体。参考 [lopdf](https://docs.rs/lopdf/0.45.0/lopdf/)、[hayro](https://github.com/LaurenzV/hayro)、[PDF.js](https://mozilla.github.io/pdf.js/getting_started/) 的官方资料。
+`npm run test:licenses` 校验许可正文、字体 / WASM 及源码哈希、MPL 源码完整性；CI 的 Windows / macOS 构建均执行。PDF.js 升级或相关资产改变时需重新核对许可及匹配源码，检查通过后才能构建。重新生成字体源码的开发工具为 `scripts/make-font-sources.py`，需 FontTools 4.66.1，不是应用运行依赖。
 
-项目按闭源商业产品开发；自身最终授权条款和发布主体尚未定义，第三方许可分别适用。
+自研范围包括压缩策略、PDF 图片分析、降采样、页面重建、文件保护与验证；标准格式解析及解码使用 Rust 基础库，桌面整页渲染使用 PDF.js，CLI 默认渲染使用 hayro，JPEG 编码使用静态链接的 MozJPEG C 库，精确黑白图的 G4 编码使用 MIT 许可的纯 Rust `fax 0.3.0`。受限 CID TrueType 字体子集使用 MIT / Apache-2.0 双许可的 `subsetter 0.2.6`，已接入保留模式；软件不分发开发测试字体。参考 [lopdf](https://docs.rs/lopdf/0.45.0/lopdf/)、[hayro](https://github.com/LaurenzV/hayro)、[PDF.js](https://mozilla.github.io/pdf.js/getting_started/) 的官方资料。
+
+自有代码从 0.1.23 起按 Apache-2.0 授权。`licenses/` 中的第三方许可和字体源码保留原有授权，不因项目开源而统一改为 Apache-2.0。

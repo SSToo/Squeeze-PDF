@@ -343,7 +343,7 @@ export default function App() {
       </a>
       <header className="topbar">
         <div className="brand">
-          <img src="/icon.svg" alt="" />
+          <img src="/logo.png" width={40} height={40} alt="" />
           <span>
             Squeeze <b>PDF</b>
           </span>

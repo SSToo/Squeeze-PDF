@@ -1,7 +1,8 @@
 {
   "name": "squeeze-pdf",
   "private": true,
-  "version": "0.1.21",
+  "license": "Apache-2.0",
+  "version": "0.1.24",
   "type": "module",
   "scripts": {
     "dev": "node scripts/prepare-worker.mjs && node scripts/prepare-notices.mjs && vite --host 127.0.0.1 --port 1420 --strictPort",
@@ -13,7 +14,8 @@
     "package:mac": "tauri build --bundles app && node scripts/package-macos.mjs",
     "postinstall": "node scripts/prepare-assets.mjs",
     "test:render": "node --experimental-strip-types scripts/test-render-validation.mjs",
-    "test:i18n": "node --experimental-strip-types scripts/test-i18n.mjs"
+    "test:i18n": "node --experimental-strip-types scripts/test-i18n.mjs",
+    "test:licenses": "node --test scripts/test-license-materials.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

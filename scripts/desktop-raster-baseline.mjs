@@ -152,7 +152,7 @@ const server = await createServer({
             let sampleChecks = [];
             if (!a.equals(b)) {
               if (!records[1].image_optimization?.selected) throw Error("Unexplained desktop encoding difference");
-              const {stdout} = await exec(process.env.SQUEEZE_QA_PYTHON || "/Users/qq/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+              const {stdout} = await exec(process.env.SQUEEZE_QA_PYTHON || "python3",
                 [resolve("scripts/verify-raster-samples.py"),records[0].output,records[1].output,s.dir]);
               sampleChecks = JSON.parse(stdout);
             }
